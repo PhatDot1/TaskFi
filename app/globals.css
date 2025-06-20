@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 15, 26;
+  --background-end-rgb: 28, 31, 46;
+}
+
+@layer base {
+  :root {
+    --background: 219 26% 5%;
+    --foreground: 0 0% 98%;
+    --card: 219 26% 8%;
+    --card-foreground: 0 0% 95%;
+    --popover: 219 26% 8%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 185 100% 50%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 219 26% 12%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 219 26% 15%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 264 88% 78%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 219 26% 18%;
+    --input: 219 26% 18%;
+    --ring: 185 100% 50%;
+    --chart-1: 185 100% 50%;
+    --chart-2: 264 88% 78%;
+    --chart-3: 120 100% 50%;
+    --chart-4: 60 100% 50%;
+    --chart-5: 0 100% 50%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-gradient-to-br from-[#0f0f1a] to-[#1c1f2e] text-foreground min-h-screen;
+  }
+}
+
+@layer components {
+  .task-card {
+    @apply bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-6 hover:bg-card/70 transition-all duration-200;
+  }
+  
+  .status-active {
+    @apply text-primary border-primary/30 bg-primary/10;
+  }
+  
+  .status-completed {
+    @apply text-green-400 border-green-400/30 bg-green-400/10;
+  }
+  
+  .status-failed {
+    @apply text-red-400 border-red-400/30 bg-red-400/10;
+  }
+  
+  .status-in-review {
+    @apply text-yellow-400 border-yellow-400/30 bg-yellow-400/10;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg px-6 py-2.5 transition-all duration-200 hover:scale-105;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold rounded-lg px-6 py-2.5 transition-all duration-200;
+  }
+  
+  .countdown-timer {
+    @apply font-mono text-sm font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/30;
+  }
+}
