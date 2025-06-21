@@ -68,23 +68,28 @@ To add a fun, viral mechanic: users who frequently complete meaningful tasks can
 
 ### 1. Clone the Repo
 
-bash
+```bash
 git clone https://github.com/phatdot1/taskfi.git
 cd taskfi
+```
 
 ### 2. Install Dependencies
-npm install
+```npm install```
 
 ### 3. Add Environment Variables
 Create a .env.local file with your Web3Modal project ID:
-
+```
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
-You'll also need POL (Polygon testnet) in your connected wallet.
-
+PINATA_API_KEY=UR CUTE LIL API KEY
+PINATA_SECRET_KEY=UR LONG ASS PINATA SECRET
+NEXT_PUBLIC_POLYGON_AMOY_RPC_URL=https://polygon-amoy.infura.io/v3/YOUR LITTLE INFURA CODE
+```
 ###4. Start the Dev Server
+```
 npm run dev
+```
 Then visit: http://localhost:3000
-
+OR JUST USE THE PUBLIC LINK: https://task-fi-zeta.vercel.app/ 
 
 ## More images:
 
