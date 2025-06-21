@@ -11,6 +11,17 @@ import { http } from 'viem';
 // Use a valid WalletConnect project ID - you should replace this with your own
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '2f05a7cde2bb14b8de8ca916a2c5295d';
 
+// Get private RPC URL from environment variables
+const getPrivateRpcUrl = (): string => {
+  const rpcUrl = process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC_URL;
+  if (!rpcUrl) {
+    console.warn('NEXT_PUBLIC_POLYGON_AMOY_RPC_URL not found in environment variables');
+    // Fallback to public RPC if private one is not available
+    return 'https://rpc-amoy.polygon.technology/';
+  }
+  return rpcUrl;
+};
+
 // Metadata for the dApp
 const metadata = {
   name: 'TaskFi',
@@ -19,23 +30,17 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
-// Configure Polygon Amoy with multiple RPC endpoints for redundancy
+// Configure Polygon Amoy with private RPC endpoint
+const privateRpcUrl = getPrivateRpcUrl();
+
 const polygonAmoyWithRpc = {
   ...polygonAmoy,
   rpcUrls: {
     default: {
-      http: [
-        'https://rpc-amoy.polygon.technology/',
-        'https://polygon-amoy-bor-rpc.publicnode.com',
-        'https://polygon-amoy.drpc.org'
-      ]
+      http: [privateRpcUrl]
     },
     public: {
-      http: [
-        'https://rpc-amoy.polygon.technology/',
-        'https://polygon-amoy-bor-rpc.publicnode.com',
-        'https://polygon-amoy.drpc.org'
-      ]
+      http: [privateRpcUrl]
     }
   }
 };
@@ -51,7 +56,7 @@ const config = defaultWagmiConfig({
   enableEIP6963: true,
   enableCoinbase: false,
   transports: {
-    [polygonAmoy.id]: http('https://rpc-amoy.polygon.technology/')
+    [polygonAmoy.id]: http(privateRpcUrl)
   }
 });
 

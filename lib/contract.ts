@@ -11,6 +11,21 @@ export const SEPOLIA_CHAIN_ID = 11155111; // Ethereum Sepolia (for reference)
 // Use Amoy as the expected chain ID
 export const EXPECTED_CHAIN_ID = AMOY_CHAIN_ID;
 
+// Get private RPC URL from environment variables
+const getPrivateRpcUrl = (): string => {
+  // Check if we're in a browser environment and have access to process.env
+  if (typeof window !== 'undefined' && typeof process !== 'undefined' && process.env) {
+    const rpcUrl = process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC_URL;
+    if (rpcUrl) {
+      return rpcUrl;
+    }
+  }
+  
+  console.warn('Private RPC URL not found, using fallback');
+  // Fallback to public RPC if private one is not available
+  return 'https://rpc-amoy.polygon.technology/';
+};
+
 // Task status enum mapping (matches smart contract)
 export enum TaskStatus {
   InProgress = 0,
@@ -56,7 +71,7 @@ export function getTaskFiContract(providerOrSigner: ethers.providers.Provider | 
 }
 
 /**
- * Get read-only contract instance with Polygon Amoy RPC fallback
+ * Get read-only contract instance with private RPC endpoint
  * @returns Contract instance for reading data
  */
 export function getReadOnlyContract() {
@@ -65,32 +80,31 @@ export function getReadOnlyContract() {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       return getTaskFiContract(provider);
     } catch (error) {
-      console.warn('Failed to create Web3Provider, trying fallback RPC...');
+      console.warn('Failed to create Web3Provider, trying private RPC...');
     }
   }
   
-  // Fallback to Polygon Amoy RPC endpoints
-  const rpcEndpoints = [
-    'https://rpc-amoy.polygon.technology/',
-    'https://polygon-amoy-bor-rpc.publicnode.com',
-    'https://polygon-amoy.drpc.org'
-  ];
+  // Use private RPC endpoint
+  const privateRpcUrl = getPrivateRpcUrl();
   
-  for (const rpc of rpcEndpoints) {
+  try {
+    const provider = new ethers.providers.JsonRpcProvider(privateRpcUrl);
+    console.log(`Using private RPC endpoint: ${privateRpcUrl.replace(/\/v3\/.*$/, '/v3/[REDACTED]')}`);
+    return getTaskFiContract(provider);
+  } catch (error) {
+    console.warn(`Failed to connect to private RPC: ${error}`);
+    
+    // Last resort - fallback to public RPC
     try {
-      const provider = new ethers.providers.JsonRpcProvider(rpc);
-      console.log(`Using RPC endpoint: ${rpc}`);
-      return getTaskFiContract(provider);
-    } catch (error) {
-      console.warn(`Failed to connect to ${rpc}:`, error);
-      continue;
+      const fallbackProvider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
+      console.log('Using fallback public RPC endpoint');
+      return getTaskFiContract(fallbackProvider);
+    } catch (fallbackError) {
+      console.error('All RPC endpoints failed, using dummy provider');
+      const dummyProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+      return getTaskFiContract(dummyProvider);
     }
   }
-  
-  // Last resort - return a dummy contract that will fail gracefully
-  console.error('All RPC endpoints failed, using dummy provider');
-  const dummyProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
-  return getTaskFiContract(dummyProvider);
 }
 
 /**

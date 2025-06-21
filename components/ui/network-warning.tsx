@@ -21,6 +21,17 @@ interface NetworkWarningProps {
   expectedNetworkName: string;
 }
 
+// Get private RPC URL from environment variables
+const getPrivateRpcUrl = (): string => {
+  const rpcUrl = process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC_URL;
+  if (!rpcUrl) {
+    console.warn('NEXT_PUBLIC_POLYGON_AMOY_RPC_URL not found in environment variables');
+    // Fallback to public RPC if private one is not available
+    return 'https://rpc-amoy.polygon.technology/';
+  }
+  return rpcUrl;
+};
+
 export function NetworkWarning({ 
   currentChainId, 
   expectedChainId, 
@@ -39,6 +50,8 @@ export function NetworkWarning({
         // If the network doesn't exist, try to add it (for Amoy testnet)
         if (error.code === 4902 && expectedChainId === 80002) {
           try {
+            const privateRpcUrl = getPrivateRpcUrl();
+            
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
@@ -49,7 +62,7 @@ export function NetworkWarning({
                   symbol: 'POL',
                   decimals: 18,
                 },
-                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                rpcUrls: [privateRpcUrl],
                 blockExplorerUrls: ['https://amoy.polygonscan.com/'],
               }],
             });
