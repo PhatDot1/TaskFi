@@ -6,7 +6,14 @@ export const TASKFI_CONTRACT_ADDRESS = '0x559B8F2476C923A418114ABFD3704Abf88d437
 
 // Sepolia testnet configuration
 export const SEPOLIA_CHAIN_ID = 11155111;
-export const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161';
+
+// Free public RPC endpoints for Sepolia (no API key required)
+export const SEPOLIA_RPC_URLS = [
+  'https://rpc.sepolia.org',
+  'https://sepolia.gateway.tenderly.co',
+  'https://ethereum-sepolia-rpc.publicnode.com',
+  'https://1rpc.io/sepolia'
+];
 
 // Task status enum mapping (matches smart contract)
 export enum TaskStatus {
@@ -53,11 +60,23 @@ export function getTaskFiContract(providerOrSigner: ethers.providers.Provider | 
 }
 
 /**
- * Get read-only contract instance with default provider
+ * Get read-only contract instance with fallback providers
  * @returns Contract instance for reading data
  */
 export function getReadOnlyContract() {
-  const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC_URL);
+  // Try multiple RPC endpoints for reliability
+  for (const rpcUrl of SEPOLIA_RPC_URLS) {
+    try {
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      return getTaskFiContract(provider);
+    } catch (error) {
+      console.warn(`Failed to connect to ${rpcUrl}:`, error);
+      continue;
+    }
+  }
+  
+  // Fallback to first URL if all fail
+  const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC_URLS[0]);
   return getTaskFiContract(provider);
 }
 
@@ -193,29 +212,32 @@ export async function getAllTaskIds(): Promise<number[]> {
 }
 
 /**
- * Get task data with retry logic
+ * Get task data with retry logic and multiple RPC endpoints
  * @param taskId - Task ID to fetch
  * @returns Promise resolving to task data or null
  */
 export async function getTaskWithRetry(taskId: number): Promise<ContractTask | null> {
   const maxRetries = 3;
-  let lastError: any;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const contract = getReadOnlyContract();
-      const taskData = await contract.getTask(taskId);
-      return taskData;
-    } catch (error) {
-      console.error(`Failed to fetch task ${taskId} on attempt ${attempt + 1}:`, error);
-      lastError = error;
-      
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+  
+  for (let rpcIndex = 0; rpcIndex < SEPOLIA_RPC_URLS.length; rpcIndex++) {
+    const rpcUrl = SEPOLIA_RPC_URLS[rpcIndex];
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+        const contract = getTaskFiContract(provider);
+        const taskData = await contract.getTask(taskId);
+        return taskData;
+      } catch (error) {
+        console.error(`Failed to fetch task ${taskId} from ${rpcUrl} on attempt ${attempt + 1}:`, error);
+        
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        }
       }
     }
   }
   
-  console.error(`Failed to fetch task ${taskId} after ${maxRetries} attempts:`, lastError);
+  console.error(`Failed to fetch task ${taskId} from all RPC endpoints`);
   return null;
 }

@@ -19,23 +19,23 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
-// Configure Sepolia with multiple RPC endpoints for reliability
+// Configure Sepolia with free public RPC endpoints (no API keys required)
 const sepoliaWithRpc = {
   ...sepolia,
   rpcUrls: {
     default: {
       http: [
-        'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-        'https://eth-sepolia.g.alchemy.com/v2/demo',
         'https://rpc.sepolia.org',
-        'https://sepolia.gateway.tenderly.co'
+        'https://sepolia.gateway.tenderly.co',
+        'https://ethereum-sepolia-rpc.publicnode.com',
+        'https://1rpc.io/sepolia'
       ]
     },
     public: {
       http: [
-        'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-        'https://eth-sepolia.g.alchemy.com/v2/demo',
-        'https://rpc.sepolia.org'
+        'https://rpc.sepolia.org',
+        'https://sepolia.gateway.tenderly.co',
+        'https://ethereum-sepolia-rpc.publicnode.com'
       ]
     }
   }
@@ -52,7 +52,7 @@ const config = defaultWagmiConfig({
   enableEIP6963: true,
   enableCoinbase: false,
   transports: {
-    [sepolia.id]: http('https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161')
+    [sepolia.id]: http('https://rpc.sepolia.org')
   }
 });
 
