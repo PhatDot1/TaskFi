@@ -31,7 +31,7 @@ export interface UseTaskFiContractReturn {
   claimReward: (taskId: number) => Promise<boolean>;
   claimFailedTask: (taskId: number) => Promise<boolean>;
   checkTaskFailure: (taskId: number) => Promise<boolean>;
-  approveTaskCompletion: (taskId: number, nftUri: string) => Promise<boolean>;
+  approveTaskCompletion: (taskId: number, nftUri?: string) => Promise<boolean>;
   
   // Data fetching
   getUserTasks: (address?: string) => Promise<FormattedTask[]>;
@@ -338,8 +338,8 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork]);
 
-  // Approve task completion (admin only)
-  const approveTaskCompletion = useCallback(async (taskId: number, nftUri: string): Promise<boolean> => {
+  // Approve task completion (admin only) - NFT URI parameter is now optional
+  const approveTaskCompletion = useCallback(async (taskId: number, nftUri: string = ''): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
       toast.error('Please connect your wallet to Sepolia network');
       return false;
@@ -348,6 +348,8 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     try {
       setIsLoading(true);
       
+      // Call the contract function - if your contract expects an NFT URI, pass empty string
+      // If your contract doesn't need NFT URI, you might need to update this call
       const tx = await contract.approveTaskCompletion(taskId, nftUri);
       
       toast.success('Approval submitted', {

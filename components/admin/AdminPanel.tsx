@@ -32,8 +32,6 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
   const { address } = useAccount();
   const { allTasks, approveTaskCompletion, isLoading, refreshTasks } = useTaskFiContract();
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
-  const [nftUri, setNftUri] = useState('');
-  const [rejectReason, setRejectReason] = useState('');
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
 
@@ -60,20 +58,15 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
   };
 
   const handleApproveTask = async (task: any) => {
-    if (!nftUri.trim()) {
-      toast.error('Please provide an NFT URI for the completion certificate');
-      return;
-    }
-
     setIsApproving(true);
     try {
-      const success = await approveTaskCompletion(task.id, nftUri);
+      // Call approve without NFT URI - just pass empty string or remove parameter
+      const success = await approveTaskCompletion(task.id, '');
       if (success) {
         toast.success('Task approved successfully!', {
           description: `${formatAddress(task.creator)} can now claim their ${task.stake} ETH`
         });
         setSelectedTask(null);
-        setNftUri('');
         setTimeout(() => refreshTasks(), 2000);
       }
     } catch (error) {
@@ -204,29 +197,25 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
 
                 {selectedTask?.id === task.id ? (
                   <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">
-                        NFT URI for completion certificate:
-                      </label>
-                      <Input
-                        value={nftUri}
-                        onChange={(e) => setNftUri(e.target.value)}
-                        placeholder="https://ipfs.io/ipfs/your-nft-metadata"
-                        className="text-xs"
-                        disabled={isApproving}
-                      />
+                    <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <p className="text-sm font-medium text-green-400 mb-1">
+                        Ready to approve task completion?
+                      </p>
+                      <p className="text-xs text-green-400/80">
+                        This will mark the task as completed and allow the creator to claim their stake back.
+                      </p>
                     </div>
                     
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleApproveTask(task)}
-                        disabled={isApproving || !nftUri.trim()}
+                        disabled={isApproving}
                         className="bg-green-600 hover:bg-green-700 text-white flex-1 text-xs"
                       >
                         {isApproving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                         <CheckCircle className="mr-1 h-3 w-3" />
-                        Approve
+                        Confirm Approval
                       </Button>
                       <Button
                         size="sm"
@@ -243,10 +232,7 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => {
-                        setSelectedTask(task);
-                        setNftUri(`https://taskfi.app/nft/${task.id}`); // Default NFT URI
-                      }}
+                      onClick={() => setSelectedTask(task)}
                       className="bg-green-600 hover:bg-green-700 text-white flex-1 text-xs"
                     >
                       <CheckCircle className="mr-1 h-3 w-3" />
