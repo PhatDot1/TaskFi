@@ -10,7 +10,7 @@ import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw, Wallet } from 'lucide-react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import {
   Tooltip,
@@ -137,7 +137,7 @@ export default function HomePage() {
                   <div>
                     <h3 className="font-semibold text-orange-400">Wrong Network</h3>
                     <p className="text-sm text-orange-400/80">
-                      Please switch to Sepolia testnet to use TaskFi
+                      Please switch to Sepolia testnet to use TaskFi. Current network: {chainId}
                     </p>
                   </div>
                 </div>
@@ -147,6 +147,18 @@ export default function HomePage() {
                 >
                   Switch to Sepolia
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Connection Status */}
+          {mounted && isConnected && isCorrectNetwork && (
+            <div className="mb-6 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-4 w-4 text-green-400" />
+                <span className="text-sm text-green-400">
+                  Connected to Sepolia testnet • Ready to create tasks
+                </span>
               </div>
             </div>
           )}
@@ -392,6 +404,16 @@ export default function HomePage() {
                   <h3 className="text-lg font-semibold text-foreground mb-2">No claimable tasks</h3>
                   <p className="text-muted-foreground">
                     There are currently no failed tasks available for claiming.
+                  </p>
+                </div>
+              )}
+
+              {allTasks.length === 0 && !showOnlyClaimable && (
+                <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
+                  <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No tasks found</h3>
+                  <p className="text-muted-foreground">
+                    {isRefreshing ? 'Loading tasks...' : 'No tasks have been created yet. Be the first!'}
                   </p>
                 </div>
               )}

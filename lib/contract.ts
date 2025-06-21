@@ -7,14 +7,6 @@ export const TASKFI_CONTRACT_ADDRESS = '0x559B8F2476C923A418114ABFD3704Abf88d437
 // Sepolia testnet configuration
 export const SEPOLIA_CHAIN_ID = 11155111;
 
-// Free public RPC endpoints for Sepolia (no API key required)
-export const SEPOLIA_RPC_URLS = [
-  'https://rpc.sepolia.org',
-  'https://sepolia.gateway.tenderly.co',
-  'https://ethereum-sepolia-rpc.publicnode.com',
-  'https://1rpc.io/sepolia'
-];
-
 // Task status enum mapping (matches smart contract)
 export enum TaskStatus {
   InProgress = 0,
@@ -60,24 +52,24 @@ export function getTaskFiContract(providerOrSigner: ethers.providers.Provider | 
 }
 
 /**
- * Get read-only contract instance with fallback providers
+ * Get read-only contract instance using the user's wallet provider
+ * This avoids CORS issues by using the wallet's built-in provider
  * @returns Contract instance for reading data
  */
 export function getReadOnlyContract() {
-  // Try multiple RPC endpoints for reliability
-  for (const rpcUrl of SEPOLIA_RPC_URLS) {
+  if (typeof window !== 'undefined' && window.ethereum) {
     try {
-      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
       return getTaskFiContract(provider);
     } catch (error) {
-      console.warn(`Failed to connect to ${rpcUrl}:`, error);
-      continue;
+      console.warn('Failed to create Web3Provider, falling back to dummy contract');
     }
   }
   
-  // Fallback to first URL if all fail
-  const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC_URLS[0]);
-  return getTaskFiContract(provider);
+  // Return a dummy contract that will fail gracefully
+  // This prevents the app from crashing when wallet is not connected
+  const dummyProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+  return getTaskFiContract(dummyProvider);
 }
 
 /**
@@ -176,68 +168,50 @@ export async function getMinimumDeposit(): Promise<string> {
 }
 
 /**
- * Get all task IDs from the contract with retry logic
+ * Get all task IDs from the contract
  * @returns Promise resolving to array of task IDs
  */
 export async function getAllTaskIds(): Promise<number[]> {
-  const maxRetries = 3;
-  let lastError: any;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const contract = getReadOnlyContract();
-      const currentTaskId = await contract.getCurrentTaskId();
-      const taskIds: number[] = [];
-      
-      // Task IDs start from 1
-      for (let i = 1; i <= currentTaskId.toNumber(); i++) {
-        taskIds.push(i);
-      }
-      
-      console.log(`Found ${taskIds.length} tasks on attempt ${attempt + 1}`);
-      return taskIds;
-    } catch (error) {
-      console.error(`Attempt ${attempt + 1} failed:`, error);
-      lastError = error;
-      
-      if (attempt < maxRetries - 1) {
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
+  try {
+    if (!window.ethereum) {
+      console.warn('No wallet provider available');
+      return [];
     }
+
+    const contract = getReadOnlyContract();
+    const currentTaskId = await contract.getCurrentTaskId();
+    const taskIds: number[] = [];
+    
+    // Task IDs start from 1
+    for (let i = 1; i <= currentTaskId.toNumber(); i++) {
+      taskIds.push(i);
+    }
+    
+    console.log(`Found ${taskIds.length} tasks`);
+    return taskIds;
+  } catch (error) {
+    console.error('Error fetching task IDs:', error);
+    return [];
   }
-  
-  console.error('All attempts to fetch task IDs failed:', lastError);
-  return [];
 }
 
 /**
- * Get task data with retry logic and multiple RPC endpoints
+ * Get task data safely
  * @param taskId - Task ID to fetch
  * @returns Promise resolving to task data or null
  */
-export async function getTaskWithRetry(taskId: number): Promise<ContractTask | null> {
-  const maxRetries = 3;
-  
-  for (let rpcIndex = 0; rpcIndex < SEPOLIA_RPC_URLS.length; rpcIndex++) {
-    const rpcUrl = SEPOLIA_RPC_URLS[rpcIndex];
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-        const contract = getTaskFiContract(provider);
-        const taskData = await contract.getTask(taskId);
-        return taskData;
-      } catch (error) {
-        console.error(`Failed to fetch task ${taskId} from ${rpcUrl} on attempt ${attempt + 1}:`, error);
-        
-        if (attempt < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-        }
-      }
+export async function getTaskSafely(taskId: number): Promise<ContractTask | null> {
+  try {
+    if (!window.ethereum) {
+      console.warn('No wallet provider available');
+      return null;
     }
+
+    const contract = getReadOnlyContract();
+    const taskData = await contract.getTask(taskId);
+    return taskData;
+  } catch (error) {
+    console.error(`Failed to fetch task ${taskId}:`, error);
+    return null;
   }
-  
-  console.error(`Failed to fetch task ${taskId} from all RPC endpoints`);
-  return null;
 }

@@ -12,7 +12,7 @@ import {
   SEPOLIA_CHAIN_ID,
   isSepoliaNetwork,
   getAllTaskIds,
-  getTaskWithRetry
+  getTaskSafely
 } from '@/lib/contract';
 import { toast } from 'sonner';
 
@@ -70,8 +70,9 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
             const provider = new ethers.providers.Web3Provider(window.ethereum as any);
             const signer = provider.getSigner();
             setContract(getTaskFiContract(signer));
+            console.log('Contract initialized successfully');
           }
-        }, 200);
+        }, 500);
 
         return () => clearTimeout(timer);
       } catch (error) {
@@ -130,7 +131,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       });
       
       // Refresh tasks after successful submission with a longer delay
-      setTimeout(() => refreshTasks(), 3000);
+      setTimeout(() => refreshTasks(), 5000);
       
       return true;
     } catch (error: any) {
@@ -181,7 +182,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
         description: 'Your task is now awaiting admin approval'
       });
       
-      setTimeout(() => refreshTasks(), 2000);
+      setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error submitting proof:', error);
@@ -214,7 +215,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Reward claimed successfully!');
       
-      setTimeout(() => refreshTasks(), 2000);
+      setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error claiming reward:', error);
@@ -247,7 +248,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Failed task claimed successfully!');
       
-      setTimeout(() => refreshTasks(), 2000);
+      setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error claiming failed task:', error);
@@ -269,7 +270,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     try {
       const tx = await contract.checkTaskFailure(taskId);
       await tx.wait();
-      setTimeout(() => refreshTasks(), 2000);
+      setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error checking task failure:', error);
@@ -297,7 +298,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Task approved successfully!');
       
-      setTimeout(() => refreshTasks(), 2000);
+      setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error approving task:', error);
@@ -310,20 +311,23 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork]);
 
-  // Fetch user's tasks with improved error handling
+  // Fetch user's tasks - only when wallet is connected and on correct network
   const getUserTasks = useCallback(async (userAddress?: string): Promise<FormattedTask[]> => {
     const targetAddress = userAddress || address;
-    if (!targetAddress) return [];
+    if (!targetAddress || !isConnected || !isCorrectNetwork || !window.ethereum) {
+      return [];
+    }
 
     try {
       console.log('Fetching tasks for user:', targetAddress);
-      const taskIds = await readOnlyContract.getUserTasks(targetAddress);
+      const contract = getReadOnlyContract();
+      const taskIds = await contract.getUserTasks(targetAddress);
       console.log('User task IDs:', taskIds.map((id: any) => id.toNumber()));
       
       const tasks: FormattedTask[] = [];
 
       for (const taskId of taskIds) {
-        const taskData = await getTaskWithRetry(taskId.toNumber());
+        const taskData = await getTaskSafely(taskId.toNumber());
         if (taskData) {
           const formattedTask = formatTaskData(taskData);
           tasks.push(formattedTask);
@@ -336,10 +340,14 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       console.error('Error fetching user tasks:', error);
       return [];
     }
-  }, [readOnlyContract, address]);
+  }, [address, isConnected, isCorrectNetwork]);
 
-  // Fetch all tasks with improved error handling
+  // Fetch all tasks - only when wallet is connected and on correct network
   const getAllTasks = useCallback(async (): Promise<FormattedTask[]> => {
+    if (!isConnected || !isCorrectNetwork || !window.ethereum) {
+      return [];
+    }
+
     try {
       console.log('Fetching all tasks...');
       const taskIds = await getAllTaskIds();
@@ -348,7 +356,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       const tasks: FormattedTask[] = [];
 
       for (const taskId of taskIds) {
-        const taskData = await getTaskWithRetry(taskId);
+        const taskData = await getTaskSafely(taskId);
         if (taskData) {
           const formattedTask = formatTaskData(taskData);
           tasks.push(formattedTask);
@@ -361,22 +369,29 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       console.error('Error fetching all tasks:', error);
       return [];
     }
-  }, []);
+  }, [isConnected, isCorrectNetwork]);
 
   // Get single task
   const getTask = useCallback(async (taskId: number): Promise<FormattedTask | null> => {
+    if (!isConnected || !isCorrectNetwork || !window.ethereum) {
+      return null;
+    }
+
     try {
-      const taskData = await getTaskWithRetry(taskId);
+      const taskData = await getTaskSafely(taskId);
       return taskData ? formatTaskData(taskData) : null;
     } catch (error) {
       console.error('Error fetching task:', error);
       return null;
     }
-  }, []);
+  }, [isConnected, isCorrectNetwork]);
 
   // Refresh all tasks
   const refreshTasks = useCallback(async () => {
-    if (!isCorrectNetwork) return;
+    if (!isConnected || !isCorrectNetwork) {
+      console.log('Skipping refresh - not connected or wrong network');
+      return;
+    }
     
     console.log('Refreshing tasks...');
     setIsRefreshing(true);
@@ -396,27 +411,31 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     } finally {
       setIsRefreshing(false);
     }
-  }, [getUserTasks, getAllTasks, isCorrectNetwork]);
+  }, [getUserTasks, getAllTasks, isConnected, isCorrectNetwork]);
 
   // Initial data load with proper network check
   useEffect(() => {
-    if (isConnected && isCorrectNetwork) {
-      console.log('Initial data load triggered');
+    if (isConnected && isCorrectNetwork && address) {
+      console.log('Initial data load triggered for address:', address);
       const timer = setTimeout(() => {
         refreshTasks();
-      }, 2000); // Increased delay for initial load
+      }, 3000); // Increased delay for initial load
 
       return () => clearTimeout(timer);
+    } else {
+      // Clear tasks when disconnected or on wrong network
+      setUserTasks([]);
+      setAllTasks([]);
     }
   }, [isConnected, isCorrectNetwork, address]);
 
-  // Auto-refresh every 30 seconds when connected
+  // Auto-refresh every 45 seconds when connected
   useEffect(() => {
     if (isConnected && isCorrectNetwork) {
       const interval = setInterval(() => {
         console.log('Auto-refreshing tasks...');
         refreshTasks();
-      }, 30000);
+      }, 45000);
 
       return () => clearInterval(interval);
     }
