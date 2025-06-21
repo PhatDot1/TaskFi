@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import { ethers } from 'ethers';
 import { 
   getTaskFiContract, 
@@ -47,6 +47,7 @@ export interface UseTaskFiContractReturn {
 export function useTaskFiContract(): UseTaskFiContractReturn {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const chainId = useChainId();
   
   const [contract, setContract] = useState<ethers.Contract | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,21 +57,20 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   
   const readOnlyContract = getReadOnlyContract();
   
-  // For now, assume correct network since wagmi handles network switching
-  const isCorrectNetwork = true;
+  // Check if we're on the correct network (Sepolia)
+  const isCorrectNetwork = chainId === SEPOLIA_CHAIN_ID;
 
-  // Initialize contract when wallet is connected
+  // Initialize contract when wallet is connected and on correct network
   useEffect(() => {
-    if (isConnected && walletClient && typeof window !== 'undefined') {
+    if (isConnected && walletClient && isCorrectNetwork && typeof window !== 'undefined') {
       try {
-        // Add a small delay to ensure MetaMask is ready
         const timer = setTimeout(() => {
           if (window.ethereum) {
             const provider = new ethers.providers.Web3Provider(window.ethereum as any);
             const signer = provider.getSigner();
             setContract(getTaskFiContract(signer));
           }
-        }, 500); // 500ms delay
+        }, 200);
 
         return () => clearTimeout(timer);
       } catch (error) {
@@ -80,7 +80,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     } else {
       setContract(null);
     }
-  }, [isConnected, walletClient]);
+  }, [isConnected, walletClient, isCorrectNetwork]);
 
   // Submit a new task
   const submitTask = useCallback(async (
@@ -88,8 +88,18 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     timelineHours: number, 
     depositEth: string
   ): Promise<boolean> => {
-    if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet to Sepolia network');
+    if (!isConnected) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    if (!isCorrectNetwork) {
+      toast.error('Please switch to Sepolia network');
+      return false;
+    }
+
+    if (!contract) {
+      toast.error('Contract not initialized. Please try again.');
       return false;
     }
 
@@ -97,8 +107,15 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       setIsLoading(true);
       
       const depositWei = ethers.utils.parseEther(depositEth);
-      const tx = await contract.submitTask(description, timelineHours, {
+      
+      // Estimate gas first
+      const gasEstimate = await contract.estimateGas.submitTask(description, timelineHours, {
         value: depositWei
+      });
+      
+      const tx = await contract.submitTask(description, timelineHours, {
+        value: depositWei,
+        gasLimit: gasEstimate.mul(120).div(100) // Add 20% buffer
       });
       
       toast.success('Transaction submitted', {
@@ -112,14 +129,29 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       });
       
       // Refresh tasks after successful submission
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       
       return true;
     } catch (error: any) {
       console.error('Error submitting task:', error);
-      toast.error('Failed to create task', {
-        description: error.reason || error.message || 'Transaction failed'
-      });
+      
+      if (error.code === 'NETWORK_ERROR') {
+        toast.error('Network error', {
+          description: 'Please check your connection and try again'
+        });
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+        toast.error('Insufficient funds', {
+          description: 'You need more ETH to complete this transaction'
+        });
+      } else if (error.code === 'USER_REJECTED') {
+        toast.error('Transaction cancelled', {
+          description: 'You cancelled the transaction'
+        });
+      } else {
+        toast.error('Failed to create task', {
+          description: error.reason || error.message || 'Transaction failed'
+        });
+      }
       return false;
     } finally {
       setIsLoading(false);
@@ -148,7 +180,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
         description: 'Your task is now awaiting admin approval'
       });
       
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       return true;
     } catch (error: any) {
       console.error('Error submitting proof:', error);
@@ -181,7 +213,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Reward claimed successfully!');
       
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       return true;
     } catch (error: any) {
       console.error('Error claiming reward:', error);
@@ -214,7 +246,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Failed task claimed successfully!');
       
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       return true;
     } catch (error: any) {
       console.error('Error claiming failed task:', error);
@@ -236,7 +268,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     try {
       const tx = await contract.checkTaskFailure(taskId);
       await tx.wait();
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       return true;
     } catch (error: any) {
       console.error('Error checking task failure:', error);
@@ -264,7 +296,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       
       toast.success('Task approved successfully!');
       
-      refreshTasks();
+      setTimeout(() => refreshTasks(), 2000);
       return true;
     } catch (error: any) {
       console.error('Error approving task:', error);
@@ -311,7 +343,6 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
           const formattedTask = formatTaskData(taskData);
           tasks.push(formattedTask);
         } catch (error) {
-          // Skip tasks that don't exist or can't be fetched
           console.warn(`Could not fetch task ${taskId}:`, error);
         }
       }
@@ -336,6 +367,8 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
 
   // Refresh all tasks
   const refreshTasks = useCallback(async () => {
+    if (!isCorrectNetwork) return;
+    
     setIsRefreshing(true);
     try {
       const [userTasksData, allTasksData] = await Promise.all([
@@ -350,19 +383,18 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     } finally {
       setIsRefreshing(false);
     }
-  }, [getUserTasks, getAllTasks]);
+  }, [getUserTasks, getAllTasks, isCorrectNetwork]);
 
-  // Initial data load with delay
+  // Initial data load with proper network check
   useEffect(() => {
-    if (isConnected) {
-      // Add delay to ensure wallet is fully connected
+    if (isConnected && isCorrectNetwork) {
       const timer = setTimeout(() => {
         refreshTasks();
-      }, 1000);
+      }, 1500);
 
       return () => clearTimeout(timer);
     }
-  }, [isConnected, refreshTasks]);
+  }, [isConnected, isCorrectNetwork, refreshTasks]);
 
   return {
     contract,

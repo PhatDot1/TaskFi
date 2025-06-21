@@ -10,18 +10,21 @@ import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle } from 'lucide-react';
-import { useAccount } from 'wagmi';
+import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle } from 'lucide-react';
+import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { SEPOLIA_CHAIN_ID } from '@/lib/contract';
 
 export default function HomePage() {
   const { address, isConnected } = useAccount();
-  const { userTasks, allTasks, isRefreshing } = useTaskFiContract();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const { userTasks, allTasks, isRefreshing, isCorrectNetwork } = useTaskFiContract();
   const [mounted, setMounted] = useState(false);
   
   // Modal states
@@ -75,6 +78,14 @@ export default function HomePage() {
     setViewProofOpen(true);
   };
 
+  const handleSwitchToSepolia = async () => {
+    try {
+      await switchChain({ chainId: SEPOLIA_CHAIN_ID });
+    } catch (error) {
+      console.error('Failed to switch network:', error);
+    }
+  };
+
   const getTaskStats = () => {
     const total = userTasks.length;
     const active = activeTasks.length;
@@ -113,8 +124,31 @@ export default function HomePage() {
         <Header />
         
         <main className="max-w-7xl mx-auto px-6 py-8">
+          {/* Network Warning */}
+          {mounted && isConnected && !isCorrectNetwork && (
+            <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-400" />
+                  <div>
+                    <h3 className="font-semibold text-orange-400">Wrong Network</h3>
+                    <p className="text-sm text-orange-400/80">
+                      Please switch to Sepolia testnet to use TaskFi
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleSwitchToSepolia}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  Switch to Sepolia
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Stats Overview */}
-          {mounted && isConnected && (
+          {mounted && isConnected && isCorrectNetwork && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
               <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -154,7 +188,7 @@ export default function HomePage() {
           )}
 
           {/* Your Tasks Section */}
-          {mounted && isConnected && (
+          {mounted && isConnected && isCorrectNetwork && (
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -172,6 +206,7 @@ export default function HomePage() {
                 <Button
                   onClick={() => setAddTaskOpen(true)}
                   className="btn-primary"
+                  disabled={!isCorrectNetwork}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Task
@@ -185,7 +220,11 @@ export default function HomePage() {
                   <p className="text-muted-foreground mb-4">
                     Create your first task to start building productive habits with Web3 accountability.
                   </p>
-                  <Button onClick={() => setAddTaskOpen(true)} className="btn-primary">
+                  <Button 
+                    onClick={() => setAddTaskOpen(true)} 
+                    className="btn-primary"
+                    disabled={!isCorrectNetwork}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Task
                   </Button>
@@ -304,43 +343,45 @@ export default function HomePage() {
           )}
 
           {/* All Tasks Section */}
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-foreground">All Tasks</h2>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Switch
-                    checked={showOnlyClaimable}
-                    onCheckedChange={setShowOnlyClaimable}
+          {mounted && isConnected && isCorrectNetwork && (
+            <section>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-foreground">All Tasks</h2>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Switch
+                      checked={showOnlyClaimable}
+                      onCheckedChange={setShowOnlyClaimable}
+                    />
+                    Show Only Claimable
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                {publicTasks.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    isOwn={task.creator.toLowerCase() === address?.toLowerCase()}
+                    onComplete={handleCompleteTask}
+                    onClaim={handleClaim}
+                    onViewProof={handleViewProof}
                   />
-                  Show Only Claimable
-                </label>
+                ))}
               </div>
-            </div>
 
-            <div className="grid gap-4">
-              {publicTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isOwn={task.creator.toLowerCase() === address?.toLowerCase()}
-                  onComplete={handleCompleteTask}
-                  onClaim={handleClaim}
-                  onViewProof={handleViewProof}
-                />
-              ))}
-            </div>
-
-            {publicTasks.length === 0 && showOnlyClaimable && (
-              <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
-                <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">No claimable tasks</h3>
-                <p className="text-muted-foreground">
-                  There are currently no failed tasks available for claiming.
-                </p>
-              </div>
-            )}
-          </section>
+              {publicTasks.length === 0 && showOnlyClaimable && (
+                <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
+                  <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No claimable tasks</h3>
+                  <p className="text-muted-foreground">
+                    There are currently no failed tasks available for claiming.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Connect Wallet CTA */}
           {mounted && !isConnected && (
