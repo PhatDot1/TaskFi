@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Header } from '@/components/layout/Header';
@@ -42,27 +42,58 @@ export default function HomePage() {
   // Filters
   const [showOnlyClaimable, setShowOnlyClaimable] = useState(false);
   const [showActiveTasks, setShowActiveTasks] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Set mounted to true after component mounts
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Group user tasks by status
-  const activeTasks = userTasks.filter(task => task.status === 'active');
-  const completedTasks = userTasks.filter(task => task.status === 'completed');
-  const failedTasks = userTasks.filter(task => task.status === 'failed');
-  const inReviewTasks = userTasks.filter(task => task.status === 'in-review');
+  // Search functionality
+  const filterTasksBySearch = (tasks: any[], query: string) => {
+    if (!query || query.length < 2) return tasks;
+    
+    const lowercaseQuery = query.toLowerCase();
+    
+    return tasks.filter(task => {
+      // Search in description
+      const descriptionMatch = task.description.toLowerCase().includes(lowercaseQuery);
+      
+      // Search in creator address
+      const creatorMatch = task.creator.toLowerCase().includes(lowercaseQuery);
+      
+      // Search in stake amount
+      const stakeMatch = task.stake.toString().includes(lowercaseQuery);
+      
+      // Search in status
+      const statusMatch = task.status.toLowerCase().includes(lowercaseQuery);
+      
+      return descriptionMatch || creatorMatch || stakeMatch || statusMatch;
+    });
+  };
+
+  // Group user tasks by status with search filtering
+  const filteredUserTasks = useMemo(() => {
+    return filterTasksBySearch(userTasks, searchQuery);
+  }, [userTasks, searchQuery]);
+
+  const activeTasks = filteredUserTasks.filter(task => task.status === 'active');
+  const completedTasks = filteredUserTasks.filter(task => task.status === 'completed');
+  const failedTasks = filteredUserTasks.filter(task => task.status === 'failed');
+  const inReviewTasks = filteredUserTasks.filter(task => task.status === 'in-review');
   
   // Filter tasks based on toggle
   const activeTasksToShow = [...activeTasks, ...inReviewTasks];
   const endedTasksToShow = [...completedTasks, ...failedTasks];
   const tasksToShow = showActiveTasks ? activeTasksToShow : endedTasksToShow;
 
-  // Filter public tasks
-  const publicTasks = showOnlyClaimable 
-    ? allTasks.filter(task => task.status === 'failed')
-    : allTasks;
+  // Filter public tasks with search
+  const filteredPublicTasks = useMemo(() => {
+    const filtered = filterTasksBySearch(allTasks, searchQuery);
+    return showOnlyClaimable 
+      ? filtered.filter(task => task.status === 'failed')
+      : filtered;
+  }, [allTasks, searchQuery, showOnlyClaimable]);
 
   const handleCompleteTask = (task: any) => {
     setSelectedTask(task);
@@ -92,6 +123,10 @@ export default function HomePage() {
     refreshTasks();
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   const getTaskStats = () => {
     const total = userTasks.length;
     const active = activeTasks.length;
@@ -110,7 +145,7 @@ export default function HomePage() {
     return (
       <TooltipProvider>
         <div className="min-h-screen bg-gradient-to-br from-[#0f0f1a] to-[#1c1f2e]">
-          <Header />
+          <Header onSearch={handleSearch} searchQuery={searchQuery} />
           <main className="max-w-7xl mx-auto px-6 py-8">
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="animate-pulse">
@@ -127,9 +162,34 @@ export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gradient-to-br from-[#0f0f1a] to-[#1c1f2e]">
-        <Header />
+        <Header onSearch={handleSearch} searchQuery={searchQuery} />
         
         <main className="max-w-7xl mx-auto px-6 py-8">
+          {/* Search Results Indicator */}
+          {searchQuery && searchQuery.length >= 2 && (
+            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-5 w-5 text-blue-400" />
+                  <div>
+                    <h3 className="font-semibold text-blue-400">Search Results</h3>
+                    <p className="text-sm text-blue-400/80">
+                      Showing results for "{searchQuery}" • Found {filteredUserTasks.length} user tasks, {filteredPublicTasks.length} total tasks
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setSearchQuery('')}
+                  variant="outline"
+                  size="sm"
+                  className="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border-blue-400/30"
+                >
+                  Clear Search
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Network Warning */}
           {mounted && isConnected && !isCorrectNetwork && (
             <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
@@ -262,14 +322,26 @@ export default function HomePage() {
                 <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
                   <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    No {showActiveTasks ? 'active' : 'ended'} tasks
+                    No {showActiveTasks ? 'active' : 'ended'} tasks {searchQuery ? 'matching your search' : ''}
                   </h3>
                   <p className="text-muted-foreground">
-                    {showActiveTasks 
-                      ? 'All your tasks have been completed or failed. Create a new task to get started!'
-                      : 'You don\'t have any completed or failed tasks yet.'
-                    }
+                    {searchQuery ? (
+                      <>No tasks match "{searchQuery}". Try a different search term.</>
+                    ) : showActiveTasks ? (
+                      'All your tasks have been completed or failed. Create a new task to get started!'
+                    ) : (
+                      'You don\'t have any completed or failed tasks yet.'
+                    )}
                   </p>
+                  {searchQuery && (
+                    <Button
+                      onClick={() => setSearchQuery('')}
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Clear Search
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -388,7 +460,7 @@ export default function HomePage() {
               </div>
 
               <div className="grid gap-4">
-                {publicTasks.map(task => (
+                {filteredPublicTasks.map(task => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -400,23 +472,40 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {publicTasks.length === 0 && showOnlyClaimable && (
+              {filteredPublicTasks.length === 0 && showOnlyClaimable && (
                 <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
                   <XCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No claimable tasks</h3>
                   <p className="text-muted-foreground">
-                    There are currently no failed tasks available for claiming.
+                    {searchQuery 
+                      ? `No claimable tasks match "${searchQuery}".`
+                      : 'There are currently no failed tasks available for claiming.'
+                    }
                   </p>
                 </div>
               )}
 
-              {allTasks.length === 0 && !showOnlyClaimable && (
+              {filteredPublicTasks.length === 0 && !showOnlyClaimable && (
                 <div className="bg-card/30 backdrop-blur-sm border border-border/50 rounded-xl p-8 text-center">
                   <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No tasks found</h3>
                   <p className="text-muted-foreground">
-                    {isRefreshing ? 'Loading tasks...' : 'No tasks have been created yet. Be the first!'}
+                    {searchQuery 
+                      ? `No tasks match "${searchQuery}". Try a different search term.`
+                      : isRefreshing 
+                        ? 'Loading tasks...' 
+                        : 'No tasks have been created yet. Be the first!'
+                    }
                   </p>
+                  {searchQuery && (
+                    <Button
+                      onClick={() => setSearchQuery('')}
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Clear Search
+                    </Button>
+                  )}
                 </div>
               )}
             </section>
