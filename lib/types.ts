@@ -2,7 +2,7 @@ export interface Task {
   id: number;
   creator: string;
   description: string;
-  stake: string; // In POL
+  stake: string; // In ETH
   deadline: number; // Unix timestamp
   proof: string;
   completed: boolean;
@@ -27,7 +27,7 @@ export interface CreateTaskFormData {
 }
 
 export interface CompleteTaskFormData {
-  proof: string;
+  proofImage: File | null;
 }
 
 export interface ClaimScore {

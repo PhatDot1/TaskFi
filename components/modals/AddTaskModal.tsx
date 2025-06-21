@@ -37,10 +37,21 @@ import { Loader2, Coins } from 'lucide-react';
 const formSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters'),
   duration: z.string().min(1, 'Please select a duration'),
-  stake: z.string().min(1, 'Stake amount is required').refine(
-    (val) => parseFloat(val) >= 0.01,
-    'Stake must be at least 0.01 ETH'
-  ),
+  stake: z.string()
+    .min(1, 'Stake amount is required')
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 0.01;
+    }, 'Stake must be at least 0.01 ETH')
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num <= 10;
+    }, 'Stake cannot exceed 10 ETH')
+    .refine((val) => {
+      // Check if it's a valid decimal number
+      const regex = /^\d+(\.\d{1,18})?$/;
+      return regex.test(val);
+    }, 'Invalid decimal format'),
 });
 
 interface AddTaskModalProps {
@@ -150,14 +161,18 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                     <FormControl>
                       <Input
                         type="number"
-                        step="0.01"
+                        step="any"
                         min="0.01"
+                        max="10"
                         placeholder="0.01"
                         className="bg-input border-border text-foreground placeholder:text-muted-foreground"
                         {...field}
                       />
                     </FormControl>
                     <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Any amount from 0.01 to 10 ETH
+                    </p>
                   </FormItem>
                 )}
               />
