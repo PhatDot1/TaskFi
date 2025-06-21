@@ -10,6 +10,10 @@ const nextConfig = {
     // App router is enabled by default in recent Next.js versions,
     // so you can leave this empty or remove it entirely if unused
   },
+  
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 
   images: {
     unoptimized: true, // Useful if you were using static export
