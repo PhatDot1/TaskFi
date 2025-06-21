@@ -10,7 +10,7 @@ import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import {
   Tooltip,
@@ -24,7 +24,7 @@ export default function HomePage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { userTasks, allTasks, isRefreshing, isCorrectNetwork } = useTaskFiContract();
+  const { userTasks, allTasks, isRefreshing, isCorrectNetwork, refreshTasks } = useTaskFiContract();
   const [mounted, setMounted] = useState(false);
   
   // Modal states
@@ -84,6 +84,10 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to switch network:', error);
     }
+  };
+
+  const handleRefresh = () => {
+    refreshTasks();
   };
 
   const getTaskStats = () => {
@@ -203,14 +207,25 @@ export default function HomePage() {
                     </label>
                   </div>
                 </div>
-                <Button
-                  onClick={() => setAddTaskOpen(true)}
-                  className="btn-primary"
-                  disabled={!isCorrectNetwork}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Task
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleRefresh}
+                    variant="outline"
+                    size="sm"
+                    disabled={isRefreshing}
+                    className="bg-secondary hover:bg-secondary/80 border-border"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                  <Button
+                    onClick={() => setAddTaskOpen(true)}
+                    className="btn-primary"
+                    disabled={!isCorrectNetwork}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Task
+                  </Button>
+                </div>
               </div>
 
               {userTasks.length === 0 ? (

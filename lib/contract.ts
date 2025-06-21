@@ -157,23 +157,65 @@ export async function getMinimumDeposit(): Promise<string> {
 }
 
 /**
- * Get all task IDs from the contract
+ * Get all task IDs from the contract with retry logic
  * @returns Promise resolving to array of task IDs
  */
 export async function getAllTaskIds(): Promise<number[]> {
-  try {
-    const contract = getReadOnlyContract();
-    const currentTaskId = await contract.getCurrentTaskId();
-    const taskIds: number[] = [];
-    
-    // Task IDs start from 1
-    for (let i = 1; i <= currentTaskId.toNumber(); i++) {
-      taskIds.push(i);
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const contract = getReadOnlyContract();
+      const currentTaskId = await contract.getCurrentTaskId();
+      const taskIds: number[] = [];
+      
+      // Task IDs start from 1
+      for (let i = 1; i <= currentTaskId.toNumber(); i++) {
+        taskIds.push(i);
+      }
+      
+      console.log(`Found ${taskIds.length} tasks on attempt ${attempt + 1}`);
+      return taskIds;
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} failed:`, error);
+      lastError = error;
+      
+      if (attempt < maxRetries - 1) {
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
     }
-    
-    return taskIds;
-  } catch (error) {
-    console.error('Error fetching task IDs:', error);
-    return [];
   }
+  
+  console.error('All attempts to fetch task IDs failed:', lastError);
+  return [];
+}
+
+/**
+ * Get task data with retry logic
+ * @param taskId - Task ID to fetch
+ * @returns Promise resolving to task data or null
+ */
+export async function getTaskWithRetry(taskId: number): Promise<ContractTask | null> {
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const contract = getReadOnlyContract();
+      const taskData = await contract.getTask(taskId);
+      return taskData;
+    } catch (error) {
+      console.error(`Failed to fetch task ${taskId} on attempt ${attempt + 1}:`, error);
+      lastError = error;
+      
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    }
+  }
+  
+  console.error(`Failed to fetch task ${taskId} after ${maxRetries} attempts:`, lastError);
+  return null;
 }

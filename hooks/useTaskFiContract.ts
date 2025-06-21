@@ -11,7 +11,8 @@ import {
   ContractTask,
   SEPOLIA_CHAIN_ID,
   isSepoliaNetwork,
-  getAllTaskIds
+  getAllTaskIds,
+  getTaskWithRetry
 } from '@/lib/contract';
 import { toast } from 'sonner';
 
@@ -122,14 +123,14 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
         description: 'Waiting for confirmation...'
       });
       
-      await tx.wait();
+      const receipt = await tx.wait();
       
       toast.success('Task created successfully!', {
         description: `Staked ${depositEth} ETH for "${description.slice(0, 30)}..."`
       });
       
-      // Refresh tasks after successful submission
-      setTimeout(() => refreshTasks(), 2000);
+      // Refresh tasks after successful submission with a longer delay
+      setTimeout(() => refreshTasks(), 3000);
       
       return true;
     } catch (error: any) {
@@ -309,21 +310,27 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork]);
 
-  // Fetch user's tasks
+  // Fetch user's tasks with improved error handling
   const getUserTasks = useCallback(async (userAddress?: string): Promise<FormattedTask[]> => {
     const targetAddress = userAddress || address;
     if (!targetAddress) return [];
 
     try {
+      console.log('Fetching tasks for user:', targetAddress);
       const taskIds = await readOnlyContract.getUserTasks(targetAddress);
+      console.log('User task IDs:', taskIds.map((id: any) => id.toNumber()));
+      
       const tasks: FormattedTask[] = [];
 
       for (const taskId of taskIds) {
-        const taskData: ContractTask = await readOnlyContract.getTask(taskId.toNumber());
-        const formattedTask = formatTaskData(taskData);
-        tasks.push(formattedTask);
+        const taskData = await getTaskWithRetry(taskId.toNumber());
+        if (taskData) {
+          const formattedTask = formatTaskData(taskData);
+          tasks.push(formattedTask);
+        }
       }
 
+      console.log('Formatted user tasks:', tasks);
       return tasks;
     } catch (error) {
       console.error('Error fetching user tasks:', error);
@@ -331,50 +338,56 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [readOnlyContract, address]);
 
-  // Fetch all tasks
+  // Fetch all tasks with improved error handling
   const getAllTasks = useCallback(async (): Promise<FormattedTask[]> => {
     try {
+      console.log('Fetching all tasks...');
       const taskIds = await getAllTaskIds();
+      console.log('All task IDs:', taskIds);
+      
       const tasks: FormattedTask[] = [];
 
       for (const taskId of taskIds) {
-        try {
-          const taskData: ContractTask = await readOnlyContract.getTask(taskId);
+        const taskData = await getTaskWithRetry(taskId);
+        if (taskData) {
           const formattedTask = formatTaskData(taskData);
           tasks.push(formattedTask);
-        } catch (error) {
-          console.warn(`Could not fetch task ${taskId}:`, error);
         }
       }
 
+      console.log('Formatted all tasks:', tasks);
       return tasks;
     } catch (error) {
       console.error('Error fetching all tasks:', error);
       return [];
     }
-  }, [readOnlyContract]);
+  }, []);
 
   // Get single task
   const getTask = useCallback(async (taskId: number): Promise<FormattedTask | null> => {
     try {
-      const taskData: ContractTask = await readOnlyContract.getTask(taskId);
-      return formatTaskData(taskData);
+      const taskData = await getTaskWithRetry(taskId);
+      return taskData ? formatTaskData(taskData) : null;
     } catch (error) {
       console.error('Error fetching task:', error);
       return null;
     }
-  }, [readOnlyContract]);
+  }, []);
 
   // Refresh all tasks
   const refreshTasks = useCallback(async () => {
     if (!isCorrectNetwork) return;
     
+    console.log('Refreshing tasks...');
     setIsRefreshing(true);
     try {
       const [userTasksData, allTasksData] = await Promise.all([
         getUserTasks(),
         getAllTasks()
       ]);
+      
+      console.log('Setting user tasks:', userTasksData);
+      console.log('Setting all tasks:', allTasksData);
       
       setUserTasks(userTasksData);
       setAllTasks(allTasksData);
@@ -388,11 +401,24 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Initial data load with proper network check
   useEffect(() => {
     if (isConnected && isCorrectNetwork) {
+      console.log('Initial data load triggered');
       const timer = setTimeout(() => {
         refreshTasks();
-      }, 1500);
+      }, 2000); // Increased delay for initial load
 
       return () => clearTimeout(timer);
+    }
+  }, [isConnected, isCorrectNetwork, address]);
+
+  // Auto-refresh every 30 seconds when connected
+  useEffect(() => {
+    if (isConnected && isCorrectNetwork) {
+      const interval = setInterval(() => {
+        console.log('Auto-refreshing tasks...');
+        refreshTasks();
+      }, 30000);
+
+      return () => clearInterval(interval);
     }
   }, [isConnected, isCorrectNetwork, refreshTasks]);
 
