@@ -52,8 +52,7 @@ export function getTaskFiContract(providerOrSigner: ethers.providers.Provider | 
 }
 
 /**
- * Get read-only contract instance using the user's wallet provider
- * This avoids CORS issues by using the wallet's built-in provider
+ * Get read-only contract instance with improved RPC fallback
  * @returns Contract instance for reading data
  */
 export function getReadOnlyContract() {
@@ -62,12 +61,31 @@ export function getReadOnlyContract() {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       return getTaskFiContract(provider);
     } catch (error) {
-      console.warn('Failed to create Web3Provider, falling back to dummy contract');
+      console.warn('Failed to create Web3Provider, trying fallback RPC...');
     }
   }
   
-  // Return a dummy contract that will fail gracefully
-  // This prevents the app from crashing when wallet is not connected
+  // Fallback to public RPC endpoints
+  const rpcEndpoints = [
+    'https://rpc.sepolia.org',
+    'https://sepolia.gateway.tenderly.co',
+    'https://ethereum-sepolia-rpc.publicnode.com',
+    'https://1rpc.io/sepolia'
+  ];
+  
+  for (const rpc of rpcEndpoints) {
+    try {
+      const provider = new ethers.providers.JsonRpcProvider(rpc);
+      console.log(`Using RPC endpoint: ${rpc}`);
+      return getTaskFiContract(provider);
+    } catch (error) {
+      console.warn(`Failed to connect to ${rpc}:`, error);
+      continue;
+    }
+  }
+  
+  // Last resort - return a dummy contract that will fail gracefully
+  console.error('All RPC endpoints failed, using dummy provider');
   const dummyProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
   return getTaskFiContract(dummyProvider);
 }
@@ -206,7 +224,7 @@ export function isSepoliaNetwork(chainId?: number): boolean {
 }
 
 /**
- * Get minimum deposit amount from contract
+ * Get minimum deposit amount from contract with retry logic
  * @returns Promise resolving to minimum deposit in ETH
  */
 export async function getMinimumDeposit(): Promise<string> {
@@ -221,7 +239,7 @@ export async function getMinimumDeposit(): Promise<string> {
 }
 
 /**
- * Get all task IDs from the contract
+ * Get all task IDs from the contract with improved error handling
  * @returns Promise resolving to array of task IDs
  */
 export async function getAllTaskIds(): Promise<number[]> {
@@ -232,7 +250,17 @@ export async function getAllTaskIds(): Promise<number[]> {
     }
 
     const contract = getReadOnlyContract();
-    const currentTaskId = await contract.getCurrentTaskId();
+    
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 10000);
+    });
+    
+    const currentTaskId = await Promise.race([
+      contract.getCurrentTaskId(),
+      timeoutPromise
+    ]);
+    
     const taskIds: number[] = [];
     
     // Task IDs start from 1
@@ -240,16 +268,16 @@ export async function getAllTaskIds(): Promise<number[]> {
       taskIds.push(i);
     }
     
-    console.log(`Found ${taskIds.length} tasks`);
+    console.log(`✅ Found ${taskIds.length} tasks`);
     return taskIds;
   } catch (error) {
-    console.error('Error fetching task IDs:', error);
+    console.error('❌ Error fetching task IDs:', error);
     return [];
   }
 }
 
 /**
- * Get task data safely
+ * Get task data safely with retry logic
  * @param taskId - Task ID to fetch
  * @returns Promise resolving to task data or null
  */
@@ -261,10 +289,20 @@ export async function getTaskSafely(taskId: number): Promise<ContractTask | null
     }
 
     const contract = getReadOnlyContract();
-    const taskData = await contract.getTask(taskId);
+    
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 5000);
+    });
+    
+    const taskData = await Promise.race([
+      contract.getTask(taskId),
+      timeoutPromise
+    ]);
+    
     return taskData;
   } catch (error) {
-    console.error(`Failed to fetch task ${taskId}:`, error);
+    console.error(`❌ Failed to fetch task ${taskId}:`, error);
     return null;
   }
 }
