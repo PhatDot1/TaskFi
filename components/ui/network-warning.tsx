@@ -3,6 +3,18 @@
 import { AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Extend the Window interface to include ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: {
+        method: string;
+        params?: any[];
+      }) => Promise<any>;
+    };
+  }
+}
+
 interface NetworkWarningProps {
   currentChainId?: number;
   expectedChainId: number;
@@ -23,22 +35,22 @@ export function NetworkWarning({
         });
       } catch (error: any) {
         console.error('Failed to switch network:', error);
-        
-        // If the network doesn't exist, try to add it (for testnets)
-        if (error.code === 4902 && expectedChainId === 11155111) {
+
+        // If the network doesn't exist, try to add it (for Amoy testnet)
+        if (error.code === 4902 && expectedChainId === 80002) {
           try {
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
-                chainId: '0xaa36a7',
-                chainName: 'Sepolia test network',
+                chainId: '0x13882', // 80002 decimal = 0x13882 hex (corrected)
+                chainName: 'Polygon Amoy Testnet',
                 nativeCurrency: {
-                  name: 'SepoliaETH',
-                  symbol: 'ETH',
+                  name: 'POL',
+                  symbol: 'POL',
                   decimals: 18,
                 },
-                rpcUrls: ['https://sepolia.infura.io/v3/'],
-                blockExplorerUrls: ['https://sepolia.etherscan.io/'],
+                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
               }],
             });
           } catch (addError) {
@@ -74,7 +86,7 @@ export function NetworkWarning({
               asChild
             >
               <a 
-                href="https://chainlist.org/chain/11155111" 
+                href="https://amoy.polygonscan.com/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-1"
