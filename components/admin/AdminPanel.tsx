@@ -20,8 +20,8 @@ import {
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
-// Contract owner address (replace with your actual contract owner address)
-const CONTRACT_OWNER = '0x823F76401544005FCeb7f7c441976bdE683F84f1'; // Replace with your wallet address
+// Contract owner address - Updated to your actual contract owner
+const CONTRACT_OWNER = '0xB3d80D52E4C23ee60c90F52B3322F65C75991db2';
 
 interface AdminPanelProps {
   isVisible: boolean;
@@ -123,6 +123,11 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
         <p className="text-xs text-muted-foreground mb-3">
           Admin panel is only available to the contract owner.
         </p>
+        <div className="text-xs text-muted-foreground mb-3 font-mono bg-muted/50 p-2 rounded">
+          Expected: {CONTRACT_OWNER.slice(0, 6)}...{CONTRACT_OWNER.slice(-4)}
+          <br />
+          Current: {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}
+        </div>
         <Button onClick={onToggle} variant="outline" size="sm" className="w-full">
           Close
         </Button>
@@ -144,6 +149,9 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
         </div>
         <p className="text-xs text-purple-400/80 mt-1">
           Review and approve task completions
+        </p>
+        <p className="text-xs text-purple-400/60 mt-1 font-mono">
+          Owner: {CONTRACT_OWNER.slice(0, 6)}...{CONTRACT_OWNER.slice(-4)}
         </p>
       </div>
 
