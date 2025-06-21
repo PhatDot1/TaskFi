@@ -60,8 +60,8 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
   const handleApproveTask = async (task: any) => {
     setIsApproving(true);
     try {
-      // Call approve without NFT URI - just pass empty string or remove parameter
-      const success = await approveTaskCompletion(task.id, '');
+      // Call approve without any NFT parameters
+      const success = await approveTaskCompletion(task.id);
       if (success) {
         toast.success('Task approved successfully!', {
           description: `${formatAddress(task.creator)} can now claim their ${task.stake} ETH`

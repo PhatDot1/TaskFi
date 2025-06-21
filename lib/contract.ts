@@ -23,8 +23,6 @@ export interface ContractTask {
   deadline: ethers.BigNumber;
   status: TaskStatus;
   proofOfCompletion: string;
-  completionNFTUri: string;
-  nftTokenId: ethers.BigNumber;
   createdAt: ethers.BigNumber;
 }
 
@@ -37,8 +35,6 @@ export interface FormattedTask {
   proof: string; // IPFS hash or proof URL
   status: 'active' | 'completed' | 'failed' | 'in-review';
   deposit: ethers.BigNumber; // Raw BigNumber for calculations
-  nftTokenId?: number;
-  completionNFTUri?: string;
   createdAt: number;
   canSubmitProof?: boolean; // Helper flag for UI
   canClaim?: boolean; // Helper flag for UI
@@ -132,8 +128,6 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
     proof: taskData.proofOfCompletion,
     status,
     deposit: taskData.deposit,
-    nftTokenId: taskData.nftTokenId.toNumber(),
-    completionNFTUri: taskData.completionNFTUri,
     createdAt: taskData.createdAt.toNumber(),
     canSubmitProof,
     canClaim
