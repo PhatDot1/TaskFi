@@ -27,6 +27,7 @@ import { canSubmitProofForTask } from '@/lib/contract';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
+
 const formSchema = z.object({
   proofImage: z.any().refine((file) => {
     return file && file instanceof File;
