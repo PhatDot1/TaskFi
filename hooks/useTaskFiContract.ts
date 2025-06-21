@@ -255,7 +255,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork, address]);
 
-  // Claim reward for completed task
+  // Enhanced claim reward function with better debugging
   const claimReward = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
       toast.error('Please connect your wallet to Sepolia network');
@@ -265,28 +265,133 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     try {
       setIsLoading(true);
       
-      const tx = await contract.claimReward(taskId);
+      console.log('🔍 Attempting to claim reward for task:', taskId);
       
-      toast.success('Claim submitted', {
-        description: 'Waiting for confirmation...'
+      // First, let's check the task status
+      const taskData = await getTaskSafely(taskId);
+      if (!taskData) {
+        toast.error('Task not found');
+        return false;
+      }
+
+      const formattedTask = formatTaskData(taskData);
+      console.log('📋 Task data before claim:', {
+        id: formattedTask.id,
+        status: formattedTask.status,
+        creator: formattedTask.creator,
+        stake: formattedTask.stake,
+        currentUser: address
+      });
+
+      // Validate that user can claim
+      if (formattedTask.creator.toLowerCase() !== address?.toLowerCase()) {
+        toast.error('You can only claim your own tasks');
+        return false;
+      }
+
+      if (formattedTask.status !== 'completed') {
+        toast.error(`Cannot claim task with status: ${formattedTask.status}`);
+        return false;
+      }
+
+      // Check user's balance before transaction
+      const provider = new ethers.providers.Web3Provider(window.ethereum as any);
+      const balanceBefore = await provider.getBalance(address!);
+      console.log('💰 Balance before claim:', ethers.utils.formatEther(balanceBefore), 'ETH');
+
+      // Try multiple possible function names for claiming
+      let tx;
+      let functionUsed = '';
+      
+      try {
+        // Try claimReward first
+        console.log('🔄 Trying claimReward function...');
+        const gasEstimate = await contract.estimateGas.claimReward(taskId);
+        tx = await contract.claimReward(taskId, {
+          gasLimit: gasEstimate.mul(120).div(100)
+        });
+        functionUsed = 'claimReward';
+      } catch (error: any) {
+        console.log('❌ claimReward failed:', error.message);
+        
+        try {
+          // Try claimStake
+          console.log('🔄 Trying claimStake function...');
+          const gasEstimate = await contract.estimateGas.claimStake(taskId);
+          tx = await contract.claimStake(taskId, {
+            gasLimit: gasEstimate.mul(120).div(100)
+          });
+          functionUsed = 'claimStake';
+        } catch (error2: any) {
+          console.log('❌ claimStake failed:', error2.message);
+          
+          try {
+            // Try withdrawDeposit
+            console.log('🔄 Trying withdrawDeposit function...');
+            const gasEstimate = await contract.estimateGas.withdrawDeposit(taskId);
+            tx = await contract.withdrawDeposit(taskId, {
+              gasLimit: gasEstimate.mul(120).div(100)
+            });
+            functionUsed = 'withdrawDeposit';
+          } catch (error3: any) {
+            console.log('❌ withdrawDeposit failed:', error3.message);
+            throw new Error(`All claim functions failed. Last error: ${error3.message}`);
+          }
+        }
+      }
+      
+      console.log(`✅ Transaction sent using ${functionUsed}:`, tx.hash);
+      
+      toast.success('Claim transaction submitted', {
+        description: `Using ${functionUsed} function. Waiting for confirmation...`
       });
       
-      await tx.wait();
+      const receipt = await tx.wait();
+      console.log('📄 Transaction receipt:', receipt);
       
-      toast.success('Reward claimed successfully!');
+      // Check balance after transaction
+      const balanceAfter = await provider.getBalance(address!);
+      const balanceDiff = balanceAfter.sub(balanceBefore);
+      console.log('💰 Balance after claim:', ethers.utils.formatEther(balanceAfter), 'ETH');
+      console.log('📈 Balance difference:', ethers.utils.formatEther(balanceDiff), 'ETH');
+      
+      if (balanceDiff.gt(0)) {
+        toast.success('Reward claimed successfully!', {
+          description: `Received ${ethers.utils.formatEther(balanceDiff)} ETH`
+        });
+      } else {
+        toast.warning('Transaction completed but no ETH received', {
+          description: 'Please check if the task was already claimed or contact support'
+        });
+      }
       
       setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
-      console.error('Error claiming reward:', error);
-      toast.error('Failed to claim reward', {
-        description: error.reason || error.message || 'Transaction failed'
-      });
+      console.error('❌ Error claiming reward:', error);
+      
+      if (error.code === 'USER_REJECTED') {
+        toast.error('Transaction cancelled', {
+          description: 'You cancelled the claim transaction'
+        });
+      } else if (error.message?.includes('already claimed')) {
+        toast.error('Already claimed', {
+          description: 'This task reward has already been claimed'
+        });
+      } else if (error.message?.includes('not completed')) {
+        toast.error('Task not completed', {
+          description: 'Task must be approved before claiming'
+        });
+      } else {
+        toast.error('Failed to claim reward', {
+          description: error.reason || error.message || 'Transaction failed'
+        });
+      }
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [contract, isConnected, isCorrectNetwork]);
+  }, [contract, isConnected, isCorrectNetwork, address]);
 
   // Claim failed task deposit
   const claimFailedTask = useCallback(async (taskId: number): Promise<boolean> => {
