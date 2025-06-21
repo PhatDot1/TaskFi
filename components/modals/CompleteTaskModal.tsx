@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { uploadToIPFS } from '@/lib/ipfs';
-import { Loader2, Upload, AlertTriangle, Image, X, CheckCircle, Cloud } from 'lucide-react';
+import { uploadToIPFS, testPinataConnection } from '@/lib/ipfs';
+import { Loader2, Upload, AlertTriangle, Image, X, CheckCircle, Cloud, Settings } from 'lucide-react';
 import { canSubmitProofForTask } from '@/lib/contract';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
@@ -50,6 +50,8 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [connectionStatus, setConnectionStatus] = useState<string>('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<CompleteTaskFormData>({
@@ -69,6 +71,29 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
       minute: '2-digit',
       hour12: true
     });
+  };
+
+  const testConnection = async () => {
+    setIsTestingConnection(true);
+    setConnectionStatus('Testing connection...');
+    
+    try {
+      const result = await testPinataConnection();
+      setConnectionStatus(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+      
+      if (result.success) {
+        toast.success('Pinata connection successful!');
+      } else {
+        toast.error('Pinata connection failed', {
+          description: result.message
+        });
+      }
+    } catch (error) {
+      setConnectionStatus('❌ Connection test failed');
+      toast.error('Connection test failed');
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,8 +140,8 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
         description: 'Please wait while we upload your proof image to decentralized storage'
       });
 
-      // Upload image to IPFS using our utility
-      setUploadProgress('Uploading to IPFS...');
+      // Upload image to IPFS using API key and secret
+      setUploadProgress('Uploading to IPFS via Pinata...');
       const uploadResult = await uploadToIPFS(selectedFile);
       
       if (!uploadResult.success) {
@@ -207,7 +232,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
             Submit Proof of Completion
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Upload an image that proves you've completed this task. It will be stored on IPFS.
+            Upload an image that proves you've completed this task. It will be stored on IPFS using Pinata.
           </DialogDescription>
         </DialogHeader>
         
@@ -217,6 +242,32 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Stake: <span className="text-primary font-mono">{task.stake} ETH</span></span>
             <span className="text-muted-foreground">Deadline: <span className="text-foreground">{formatDateTime(task.deadline)}</span></span>
+          </div>
+        </div>
+
+        {/* Connection Test Section */}
+        <div className="bg-blue-400/10 rounded-lg p-3 border border-blue-400/30 mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-400 mb-1">IPFS Connection</p>
+              <p className="text-xs text-blue-400/80">
+                {connectionStatus || 'Test your Pinata connection before uploading'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={testConnection}
+              disabled={isTestingConnection}
+              className="bg-blue-400/10 hover:bg-blue-400/20 text-blue-400 border-blue-400/30"
+            >
+              {isTestingConnection ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Settings className="h-3 w-3" />
+              )}
+            </Button>
           </div>
         </div>
 
@@ -314,10 +365,10 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
 
             <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
               <p className="text-sm text-primary mb-2">
-                <strong>IPFS Storage:</strong>
+                <strong>IPFS Storage via Pinata:</strong>
               </p>
               <ul className="text-xs text-primary/80 space-y-1">
-                <li>• Your image will be uploaded to IPFS (decentralized storage)</li>
+                <li>• Your image will be uploaded to IPFS using Pinata API</li>
                 <li>• Images are permanently stored and accessible worldwide</li>
                 <li>• An admin will review your proof image</li>
                 <li>• Approved tasks allow you to claim your full stake back</li>
