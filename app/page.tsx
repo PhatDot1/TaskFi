@@ -10,9 +10,8 @@ import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
 import { AdminPanel } from '@/components/admin/AdminPanel';
-import { ContractDebugPanel } from '@/components/debug/ContractDebugPanel';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw, Wallet, Bug } from 'lucide-react';
+import { Plus, Trophy, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import {
   Tooltip,
@@ -35,7 +34,6 @@ export default function HomePage() {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [viewProofOpen, setViewProofOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   
   // Modal data
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -91,7 +89,6 @@ export default function HomePage() {
   };
 
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
     refreshTasks();
   };
 
@@ -133,21 +130,6 @@ export default function HomePage() {
         <Header />
         
         <main className="max-w-7xl mx-auto px-6 py-8">
-          {/* Debug Panel Toggle */}
-          {mounted && isConnected && (
-            <div className="mb-4">
-              <Button
-                onClick={() => setDebugPanelOpen(!debugPanelOpen)}
-                variant="outline"
-                size="sm"
-                className="bg-blue-600/10 hover:bg-blue-600/20 border-blue-600/30 text-blue-400"
-              >
-                <Bug className="h-4 w-4 mr-2" />
-                {debugPanelOpen ? 'Hide' : 'Show'} Debug Panel
-              </Button>
-            </div>
-          )}
-
           {/* Network Warning */}
           {mounted && isConnected && !isCorrectNetwork && (
             <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
@@ -174,50 +156,15 @@ export default function HomePage() {
           {/* Connection Status */}
           {mounted && isConnected && isCorrectNetwork && (
             <div className="mb-6 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-4 w-4 text-green-400" />
-                <span className="text-sm text-green-400">
-                  Connected to Sepolia testnet • Ready to create tasks
-                </span>
-                <div className="ml-auto text-xs text-green-400/80">
-                  {userTasks.length} user tasks • {allTasks.length} total tasks
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Data Loading Issues Warning */}
-          {mounted && isConnected && isCorrectNetwork && allTasks.length === 0 && !isRefreshing && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <XCircle className="h-5 w-5 text-red-400" />
-                  <div>
-                    <h3 className="font-semibold text-red-400">No Data Loading</h3>
-                    <p className="text-sm text-red-400/80">
-                      Unable to load tasks from the blockchain. This could be an RPC issue.
-                    </p>
-                  </div>
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                  <span className="text-sm text-green-400">
+                    Connected to Sepolia testnet • Ready to create tasks
+                  </span>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setDebugPanelOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400"
-                  >
-                    <Bug className="h-4 w-4 mr-2" />
-                    Debug
-                  </Button>
-                  <Button
-                    onClick={handleRefresh}
-                    variant="outline"
-                    size="sm"
-                    className="bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Retry
-                  </Button>
+                <div className="text-xs text-green-400/80">
+                  {userTasks.length} user tasks • {allTasks.length} total tasks
                 </div>
               </div>
             </div>
@@ -504,9 +451,6 @@ export default function HomePage() {
             </div>
           )}
         </main>
-
-        {/* Debug Panel */}
-        {debugPanelOpen && <ContractDebugPanel />}
 
         {/* Admin Panel */}
         <AdminPanel 
