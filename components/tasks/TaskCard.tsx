@@ -13,8 +13,7 @@ import {
   AlertTriangle,
   Brain,
   Eye,
-  Upload,
-  Check
+  Upload
 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { canSubmitProofForTask, canClaimTask, canClaimFailedTask } from '@/lib/contract';
@@ -50,14 +49,7 @@ export function TaskCard({
         return (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium status-completed">
             <CheckCircle className="h-3 w-3" />
-            Completed
-          </div>
-        );
-      case 'claimed':
-        return (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-400/10 border border-blue-400/30 text-blue-400">
-            <Check className="h-3 w-3" />
-            Claimed
+            {task.claimed ? 'Completed (Claimed)' : 'Completed'}
           </div>
         );
       case 'failed':
@@ -106,7 +98,7 @@ export function TaskCard({
   const canClaimOwn = canClaimTask(task, address);
   const canClaimFailed = canClaimFailedTask(task, address);
   const hasProof = task.proof && task.proof.length > 0;
-  const isClaimed = task.status === 'claimed';
+  const isClaimed = task.claimed;
 
   return (
     <div className="task-card">

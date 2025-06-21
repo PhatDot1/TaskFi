@@ -34,7 +34,7 @@ export interface FormattedTask {
   stake: string; // Formatted ETH amount
   deadline: number; // Unix timestamp
   proof: string; // IPFS hash or proof URL
-  status: 'active' | 'completed' | 'failed' | 'in-review' | 'claimed';
+  status: 'active' | 'completed' | 'failed' | 'in-review';
   deposit: ethers.BigNumber; // Raw BigNumber for calculations
   createdAt: number;
   claimed?: boolean; // Track if reward has been claimed
@@ -143,15 +143,9 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
       }
       break;
     case TaskStatus.Complete:
-      if (isClaimed) {
-        status = 'claimed';
-        canSubmitProof = false;
-        canClaim = false; // Already claimed
-      } else {
-        status = 'completed';
-        canSubmitProof = false;
-        canClaim = true; // Can claim reward
-      }
+      status = 'completed'; // Always show as completed, use claimed flag for UI
+      canSubmitProof = false;
+      canClaim = !isClaimed; // Can claim reward only if not already claimed
       break;
     case TaskStatus.Failed:
       status = 'failed';
