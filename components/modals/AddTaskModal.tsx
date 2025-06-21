@@ -132,11 +132,12 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="bg-popover border-border">
+                        <SelectItem value="1h">1 hour</SelectItem>
+                        <SelectItem value="3h">3 hours</SelectItem>
                         <SelectItem value="6h">6 hours</SelectItem>
                         <SelectItem value="12h">12 hours</SelectItem>
                         <SelectItem value="24h">24 hours</SelectItem>
                         <SelectItem value="48h">48 hours</SelectItem>
-                        <SelectItem value="7d">7 days</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
