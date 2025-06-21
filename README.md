@@ -84,3 +84,16 @@ You'll also need POL (Polygon testnet) in your connected wallet.
 ###4. Start the Dev Server
 npm run dev
 Then visit: http://localhost:3000
+
+
+## More images:
+
+### Submitting proof to AI via IPFS
+<img width="295" alt="Screenshot 2025-06-21 at 23 30 22" src="https://github.com/user-attachments/assets/e9a9d74a-994e-4475-a009-38014f3b0164" />
+
+### Awaiting AI to check 
+<img width="1268" alt="Screenshot 2025-06-21 at 23 31 58" src="https://github.com/user-attachments/assets/380795d8-c5b8-466f-aaa9-3330b518ec26" />
+
+### Successfull claim
+<img width="1244" alt="Screenshot 2025-06-21 at 23 27 34" src="https://github.com/user-attachments/assets/b2baa5ac-682f-473e-8a5a-e9a490fccaa4" />
+
