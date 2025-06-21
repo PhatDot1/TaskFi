@@ -25,7 +25,7 @@ export function Header() {
               <Hexagon className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-xl font-bold text-foreground">TaskFi</h1>
-                <p className="text-xs text-muted-foreground">Polygon Amoy</p>
+                <p className="text-xs text-muted-foreground">Ethereum Sepolia</p>
               </div>
             </div>
           </div>

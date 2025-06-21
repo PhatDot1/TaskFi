@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWalletClient } from 'wagmi';
 import { ethers } from 'ethers';
 import { 
   getTaskFiContract, 
@@ -46,6 +46,7 @@ export interface UseTaskFiContractReturn {
 
 export function useTaskFiContract(): UseTaskFiContractReturn {
   const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   
   const [contract, setContract] = useState<ethers.Contract | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,19 +56,25 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   
   const readOnlyContract = getReadOnlyContract();
   
-  // Check network - for now we'll assume correct network since wagmi handles this
-  const isCorrectNetwork = true; // Will be properly implemented when we add network switching
+  // For now, assume correct network since wagmi handles network switching
+  const isCorrectNetwork = true;
 
   // Initialize contract when wallet is connected
   useEffect(() => {
-    if (isConnected && window.ethereum) {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      setContract(getTaskFiContract(signer));
+    if (isConnected && walletClient && typeof window !== 'undefined') {
+      try {
+        // Convert viem wallet client to ethers signer
+        const provider = new ethers.providers.Web3Provider(window.ethereum as any);
+        const signer = provider.getSigner();
+        setContract(getTaskFiContract(signer));
+      } catch (error) {
+        console.error('Error setting up contract:', error);
+        setContract(null);
+      }
     } else {
       setContract(null);
     }
-  }, [isConnected]);
+  }, [isConnected, walletClient]);
 
   // Submit a new task
   const submitTask = useCallback(async (
@@ -76,7 +83,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     depositEth: string
   ): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet');
+      toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
