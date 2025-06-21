@@ -66,6 +66,10 @@ To add a fun, viral mechanic: users who frequently complete meaningful tasks can
 
 ## 🧪 How to Run Locally
 
+### 0. RUN THE BACKEND
+
+https://github.com/PhatDot1/TaskFi-Agent
+
 ### 1. Clone the Repo
 
 ```bash
