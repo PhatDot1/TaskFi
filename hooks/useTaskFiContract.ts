@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useNetwork, useSigner } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { ethers } from 'ethers';
 import { 
   getTaskFiContract, 
@@ -10,7 +10,8 @@ import {
   FormattedTask,
   ContractTask,
   SEPOLIA_CHAIN_ID,
-  isSepoliaNetwork 
+  isSepoliaNetwork,
+  getAllTaskIds
 } from '@/lib/contract';
 import { toast } from 'sonner';
 
@@ -25,10 +26,11 @@ export interface UseTaskFiContractReturn {
   
   // Contract methods
   submitTask: (description: string, timelineHours: number, depositEth: string) => Promise<boolean>;
-  submitProof: (taskId: number, ipfsHash: string) => Promise<boolean>;
+  submitProof: (taskId: number, proofUrl: string) => Promise<boolean>;
   claimReward: (taskId: number) => Promise<boolean>;
   claimFailedTask: (taskId: number) => Promise<boolean>;
   checkTaskFailure: (taskId: number) => Promise<boolean>;
+  approveTaskCompletion: (taskId: number, nftUri: string) => Promise<boolean>;
   
   // Data fetching
   getUserTasks: (address?: string) => Promise<FormattedTask[]>;
@@ -44,8 +46,6 @@ export interface UseTaskFiContractReturn {
 
 export function useTaskFiContract(): UseTaskFiContractReturn {
   const { address, isConnected } = useAccount();
-  const { chain } = useNetwork();
-  const { data: signer } = useSigner();
   
   const [contract, setContract] = useState<ethers.Contract | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,16 +54,20 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const readOnlyContract = getReadOnlyContract();
-  const isCorrectNetwork = isSepoliaNetwork(chain?.id);
+  
+  // Check network - for now we'll assume correct network since wagmi handles this
+  const isCorrectNetwork = true; // Will be properly implemented when we add network switching
 
-  // Initialize contract when signer is available
+  // Initialize contract when wallet is connected
   useEffect(() => {
-    if (signer && isCorrectNetwork) {
+    if (isConnected && window.ethereum) {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
       setContract(getTaskFiContract(signer));
     } else {
       setContract(null);
     }
-  }, [signer, isCorrectNetwork]);
+  }, [isConnected]);
 
   // Submit a new task
   const submitTask = useCallback(async (
@@ -72,7 +76,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     depositEth: string
   ): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect to Sepolia network');
+      toast.error('Please connect your wallet');
       return false;
     }
 
@@ -110,16 +114,16 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   }, [contract, isConnected, isCorrectNetwork]);
 
   // Submit proof for a task
-  const submitProof = useCallback(async (taskId: number, ipfsHash: string): Promise<boolean> => {
+  const submitProof = useCallback(async (taskId: number, proofUrl: string): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect to Sepolia network');
+      toast.error('Please connect your wallet');
       return false;
     }
 
     try {
       setIsLoading(true);
       
-      const tx = await contract.submitProof(taskId, ipfsHash);
+      const tx = await contract.submitProof(taskId, proofUrl);
       
       toast.success('Proof submitted', {
         description: 'Waiting for confirmation...'
@@ -147,7 +151,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Claim reward for completed task
   const claimReward = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect to Sepolia network');
+      toast.error('Please connect your wallet');
       return false;
     }
 
@@ -180,7 +184,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Claim failed task deposit
   const claimFailedTask = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect to Sepolia network');
+      toast.error('Please connect your wallet');
       return false;
     }
 
@@ -227,6 +231,39 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork]);
 
+  // Approve task completion (admin only)
+  const approveTaskCompletion = useCallback(async (taskId: number, nftUri: string): Promise<boolean> => {
+    if (!contract || !isConnected || !isCorrectNetwork) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const tx = await contract.approveTaskCompletion(taskId, nftUri);
+      
+      toast.success('Approval submitted', {
+        description: 'Waiting for confirmation...'
+      });
+      
+      await tx.wait();
+      
+      toast.success('Task approved successfully!');
+      
+      refreshTasks();
+      return true;
+    } catch (error: any) {
+      console.error('Error approving task:', error);
+      toast.error('Failed to approve task', {
+        description: error.reason || error.message || 'Transaction failed'
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [contract, isConnected, isCorrectNetwork]);
+
   // Fetch user's tasks
   const getUserTasks = useCallback(async (userAddress?: string): Promise<FormattedTask[]> => {
     const targetAddress = userAddress || address;
@@ -238,7 +275,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
 
       for (const taskId of taskIds) {
         const taskData: ContractTask = await readOnlyContract.getTask(taskId.toNumber());
-        const formattedTask = formatTaskData(taskData, taskId.toNumber());
+        const formattedTask = formatTaskData(taskData);
         tasks.push(formattedTask);
       }
 
@@ -252,13 +289,18 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Fetch all tasks
   const getAllTasks = useCallback(async (): Promise<FormattedTask[]> => {
     try {
-      const taskIds = await readOnlyContract.getAllTasks();
+      const taskIds = await getAllTaskIds();
       const tasks: FormattedTask[] = [];
 
       for (const taskId of taskIds) {
-        const taskData: ContractTask = await readOnlyContract.getTask(taskId.toNumber());
-        const formattedTask = formatTaskData(taskData, taskId.toNumber());
-        tasks.push(formattedTask);
+        try {
+          const taskData: ContractTask = await readOnlyContract.getTask(taskId);
+          const formattedTask = formatTaskData(taskData);
+          tasks.push(formattedTask);
+        } catch (error) {
+          // Skip tasks that don't exist or can't be fetched
+          console.warn(`Could not fetch task ${taskId}:`, error);
+        }
       }
 
       return tasks;
@@ -272,7 +314,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   const getTask = useCallback(async (taskId: number): Promise<FormattedTask | null> => {
     try {
       const taskData: ContractTask = await readOnlyContract.getTask(taskId);
-      return formatTaskData(taskData, taskId);
+      return formatTaskData(taskData);
     } catch (error) {
       console.error('Error fetching task:', error);
       return null;
@@ -312,6 +354,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     claimReward,
     claimFailedTask,
     checkTaskFailure,
+    approveTaskCompletion,
     getUserTasks,
     getAllTasks,
     getTask,

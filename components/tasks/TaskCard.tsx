@@ -2,8 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Timer } from '@/components/ui/timer';
-import { DummyTask } from '@/lib/types';
-import { getClaimScore, calculateClaimableAmount, getClaimablePercentage } from '@/lib/dummy-data';
+import { useTaskFiContract } from '@/hooks/useTaskFiContract';
 import { 
   Clock, 
   Coins, 
@@ -17,11 +16,11 @@ import {
 import { useAccount } from 'wagmi';
 
 interface TaskCardProps {
-  task: DummyTask;
+  task: any; // Using any for now since we're transitioning from dummy data
   isOwn?: boolean;
-  onComplete?: (task: DummyTask) => void;
-  onClaim?: (task: DummyTask, type: 'own' | 'failed') => void;
-  onViewProof?: (task: DummyTask) => void;
+  onComplete?: (task: any) => void;
+  onClaim?: (task: any, type: 'own' | 'failed') => void;
+  onViewProof?: (task: any) => void;
 }
 
 export function TaskCard({ 
@@ -32,9 +31,7 @@ export function TaskCard({
   onViewProof 
 }: TaskCardProps) {
   const { address } = useAccount();
-  const userClaimScore = getClaimScore(address);
-  const claimableAmount = calculateClaimableAmount(task.stake, userClaimScore);
-  const claimablePercentage = getClaimablePercentage(userClaimScore);
+  const { claimReward, claimFailedTask, isLoading } = useTaskFiContract();
 
   const getStatusBadge = () => {
     switch (task.status) {
@@ -49,21 +46,21 @@ export function TaskCard({
         return (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium status-completed">
             <CheckCircle className="h-3 w-3" />
-            {task.aiReviewed && task.approved ? 'AI Approved' : 'Completed'}
+            Completed
           </div>
         );
       case 'failed':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium status-failed">
             <XCircle className="h-3 w-3" />
-            {task.aiReviewed && !task.approved ? 'AI Rejected' : 'Failed'}
+            Failed
           </div>
         );
       case 'in-review':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium status-in-review">
             <Brain className="h-3 w-3" />
-            AI Review
+            Under Review
           </div>
         );
     }
@@ -85,7 +82,13 @@ export function TaskCard({
     });
   };
 
-  const canClaim = userClaimScore > 0 && claimableAmount > 0;
+  const handleClaimReward = async () => {
+    await claimReward(task.id);
+  };
+
+  const handleClaimFailed = async () => {
+    await claimFailedTask(task.id);
+  };
 
   return (
     <div className="task-card">
@@ -111,26 +114,14 @@ export function TaskCard({
         </div>
       </div>
 
-      {/* Claimable amount info for failed tasks */}
-      {task.status === 'failed' && task.isClaimable && !isOwn && (
-        <div className="mb-4 p-3 bg-orange-400/10 rounded-lg border border-orange-400/30">
-          <p className="text-sm text-orange-400">
-            {canClaim 
-              ? `You can claim ${claimableAmount.toFixed(3)} POL (${claimablePercentage.toFixed(1)}%) from this failed task`
-              : 'Your Claim Score is too low to claim from this task'
-            }
-          </p>
-        </div>
-      )}
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Coins className="h-4 w-4 text-primary" />
           <span className="font-bold text-lg text-primary">
-            {task.stake} POL
+            {task.stake} ETH
           </span>
           <span className="text-xs text-muted-foreground">
-            (~${(parseFloat(task.stake) * 0.85).toFixed(2)})
+            (~${(parseFloat(task.stake) * 2000).toFixed(2)})
           </span>
         </div>
 
@@ -158,10 +149,11 @@ export function TaskCard({
             </Button>
           )}
 
-          {task.status === 'completed' && isOwn && !task.claimed && task.approved && (
+          {task.status === 'completed' && isOwn && (
             <Button
               size="sm"
-              onClick={() => onClaim?.(task, 'own')}
+              onClick={handleClaimReward}
+              disabled={isLoading}
               className="bg-green-600 hover:bg-green-700 text-white text-xs px-4"
             >
               <Trophy className="h-3 w-3 mr-1.5" />
@@ -169,13 +161,12 @@ export function TaskCard({
             </Button>
           )}
 
-          {task.status === 'failed' && task.isClaimable && !isOwn && (
+          {task.status === 'failed' && !isOwn && (
             <Button
               size="sm"
-              onClick={() => onClaim?.(task, 'failed')}
-              disabled={!canClaim}
-              className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={!canClaim ? 'Your Claim Score is too low to claim from this task' : ''}
+              onClick={handleClaimFailed}
+              disabled={isLoading}
+              className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-4"
             >
               <AlertTriangle className="h-3 w-3 mr-1.5" />
               Claim Failed

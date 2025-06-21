@@ -9,8 +9,7 @@ import { AddTaskModal } from '@/components/modals/AddTaskModal';
 import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
-import { getCurrentUserTasks, getPublicTasks, getClaimableTasks, getClaimScore } from '@/lib/dummy-data';
-import { DummyTask } from '@/lib/types';
+import { useTaskFiContract } from '@/hooks/useTaskFiContract';
 import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import {
@@ -22,6 +21,7 @@ import {
 
 export default function HomePage() {
   const { address, isConnected } = useAccount();
+  const { userTasks, allTasks, isRefreshing } = useTaskFiContract();
   const [mounted, setMounted] = useState(false);
   
   // Modal states
@@ -31,7 +31,7 @@ export default function HomePage() {
   const [viewProofOpen, setViewProofOpen] = useState(false);
   
   // Modal data
-  const [selectedTask, setSelectedTask] = useState<DummyTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [claimType, setClaimType] = useState<'own' | 'failed'>('own');
   
   // Filters
@@ -42,11 +42,6 @@ export default function HomePage() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Get tasks and claim score
-  const userTasks = getCurrentUserTasks(address);
-  const publicTasks = showOnlyClaimable ? getClaimableTasks() : getPublicTasks();
-  const userClaimScore = getClaimScore(address);
 
   // Group user tasks by status
   const activeTasks = userTasks.filter(task => task.status === 'active');
@@ -59,18 +54,23 @@ export default function HomePage() {
   const endedTasksToShow = [...completedTasks, ...failedTasks];
   const tasksToShow = showActiveTasks ? activeTasksToShow : endedTasksToShow;
 
-  const handleCompleteTask = (task: DummyTask) => {
+  // Filter public tasks
+  const publicTasks = showOnlyClaimable 
+    ? allTasks.filter(task => task.status === 'failed')
+    : allTasks;
+
+  const handleCompleteTask = (task: any) => {
     setSelectedTask(task);
     setCompleteTaskOpen(true);
   };
 
-  const handleClaim = (task: DummyTask, type: 'own' | 'failed') => {
+  const handleClaim = (task: any, type: 'own' | 'failed') => {
     setSelectedTask(task);
     setClaimType(type);
     setClaimModalOpen(true);
   };
 
-  const handleViewProof = (task: DummyTask) => {
+  const handleViewProof = (task: any) => {
     setSelectedTask(task);
     setViewProofOpen(true);
   };
@@ -115,7 +115,7 @@ export default function HomePage() {
         <main className="max-w-7xl mx-auto px-6 py-8">
           {/* Stats Overview */}
           {mounted && isConnected && (
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
               <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy className="h-4 w-4 text-primary" />
@@ -146,24 +146,9 @@ export default function HomePage() {
               </div>
               <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-accent" />
-                  <span className="text-sm font-medium text-muted-foreground">Claim Score</span>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">Your Claim Score is based on how consistently you complete meaningful tasks</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <p className="text-2xl font-bold text-accent">{userClaimScore.toFixed(1)}</p>
-              </div>
-              <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-muted-foreground">Currently Staked</span>
                 </div>
-                <p className="text-2xl font-bold text-primary">{stats.currentlyStaked.toFixed(2)} POL</p>
+                <p className="text-2xl font-bold text-primary">{stats.currentlyStaked.toFixed(3)} ETH</p>
               </div>
             </div>
           )}
@@ -249,7 +234,7 @@ export default function HomePage() {
                         <div>
                           <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center gap-2">
                             <Clock className="h-5 w-5" />
-                            Under AI Review ({inReviewTasks.length})
+                            Under Admin Review ({inReviewTasks.length})
                           </h3>
                           <div className="grid gap-4">
                             {inReviewTasks.map(task => (
@@ -367,13 +352,13 @@ export default function HomePage() {
                     <h2 className="text-2xl font-bold text-foreground">Welcome to TaskFi</h2>
                   </div>
                   <p className="text-muted-foreground">
-                    Connect your wallet to start staking POL tokens on your productivity goals.
+                    Connect your wallet to start staking ETH on your productivity goals.
                   </p>
                 </div>
                 <w3m-button />
                 <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/30">
                   <p className="text-xs text-primary">
-                    <strong>Polygon Amoy Testnet</strong><br />
+                    <strong>Ethereum Sepolia Testnet</strong><br />
                     Make sure you're connected to the correct network to interact with tasks.
                   </p>
                 </div>

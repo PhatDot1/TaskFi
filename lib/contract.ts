@@ -17,12 +17,16 @@ export enum TaskStatus {
 
 // Type definitions for contract data
 export interface ContractTask {
-  creator: string;
+  taskId: ethers.BigNumber;
+  user: string;
   description: string;
   deposit: ethers.BigNumber;
   deadline: ethers.BigNumber;
-  ipfsHash: string;
   status: TaskStatus;
+  proofOfCompletion: string;
+  completionNFTUri: string;
+  nftTokenId: ethers.BigNumber;
+  createdAt: ethers.BigNumber;
 }
 
 export interface FormattedTask {
@@ -31,9 +35,12 @@ export interface FormattedTask {
   description: string;
   stake: string; // Formatted ETH amount
   deadline: number; // Unix timestamp
-  proof: string; // IPFS hash
+  proof: string; // IPFS hash or proof URL
   status: 'active' | 'completed' | 'failed' | 'in-review';
   deposit: ethers.BigNumber; // Raw BigNumber for calculations
+  nftTokenId?: number;
+  completionNFTUri?: string;
+  createdAt: number;
 }
 
 /**
@@ -57,12 +64,12 @@ export function getReadOnlyContract() {
 /**
  * Format contract task data for UI consumption
  * @param taskData - Raw task data from contract
- * @param taskId - Task ID
  * @returns Formatted task object
  */
-export function formatTaskData(taskData: ContractTask, taskId: number): FormattedTask {
+export function formatTaskData(taskData: ContractTask): FormattedTask {
   const stakeInEth = ethers.utils.formatEther(taskData.deposit);
   const deadlineTimestamp = taskData.deadline.toNumber();
+  const taskId = taskData.taskId.toNumber();
   
   // Map contract status to UI status
   let status: FormattedTask['status'];
@@ -70,7 +77,13 @@ export function formatTaskData(taskData: ContractTask, taskId: number): Formatte
     case TaskStatus.InProgress:
       // Check if deadline has passed
       const now = Math.floor(Date.now() / 1000);
-      status = deadlineTimestamp < now ? 'failed' : 'active';
+      if (deadlineTimestamp < now) {
+        status = 'failed';
+      } else if (taskData.proofOfCompletion && taskData.proofOfCompletion.length > 0) {
+        status = 'in-review';
+      } else {
+        status = 'active';
+      }
       break;
     case TaskStatus.Complete:
       status = 'completed';
@@ -84,13 +97,16 @@ export function formatTaskData(taskData: ContractTask, taskId: number): Formatte
 
   return {
     id: taskId,
-    creator: taskData.creator,
+    creator: taskData.user,
     description: taskData.description,
     stake: stakeInEth,
     deadline: deadlineTimestamp,
-    proof: taskData.ipfsHash,
+    proof: taskData.proofOfCompletion,
     status,
-    deposit: taskData.deposit
+    deposit: taskData.deposit,
+    nftTokenId: taskData.nftTokenId.toNumber(),
+    completionNFTUri: taskData.completionNFTUri,
+    createdAt: taskData.createdAt.toNumber()
   };
 }
 
@@ -137,5 +153,27 @@ export async function getMinimumDeposit(): Promise<string> {
   } catch (error) {
     console.error('Error fetching minimum deposit:', error);
     return '0.01'; // Fallback to known minimum
+  }
+}
+
+/**
+ * Get all task IDs from the contract
+ * @returns Promise resolving to array of task IDs
+ */
+export async function getAllTaskIds(): Promise<number[]> {
+  try {
+    const contract = getReadOnlyContract();
+    const currentTaskId = await contract.getCurrentTaskId();
+    const taskIds: number[] = [];
+    
+    // Task IDs start from 1
+    for (let i = 1; i <= currentTaskId.toNumber(); i++) {
+      taskIds.push(i);
+    }
+    
+    return taskIds;
+  } catch (error) {
+    console.error('Error fetching task IDs:', error);
+    return [];
   }
 }
