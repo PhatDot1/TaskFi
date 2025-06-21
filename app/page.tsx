@@ -139,7 +139,7 @@ export default function HomePage() {
                   <div>
                     <h3 className="font-semibold text-orange-400">Wrong Network</h3>
                     <p className="text-sm text-orange-400/80">
-                      Please switch to Sepolia testnet to use TaskFi. Current network: {chainId}
+                      Please switch to Amoy testnet to use TaskFi. Current network: {chainId}
                     </p>
                   </div>
                 </div>
@@ -147,7 +147,7 @@ export default function HomePage() {
                   onClick={handleSwitchToSepolia}
                   className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  Switch to Sepolia
+                  Switch to Amoy
                 </Button>
               </div>
             </div>
@@ -160,7 +160,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-4 w-4 text-green-400" />
                   <span className="text-sm text-green-400">
-                    Connected to Sepolia testnet • Ready to create tasks
+                    Connected to Polygon Amoy testnet • Ready to create tasks
                   </span>
                 </div>
                 <div className="text-xs text-green-400/80">

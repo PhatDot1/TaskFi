@@ -1,11 +1,15 @@
 import { ethers } from 'ethers';
 import TaskFiABI from './TaskFi.json';
 
-// Contract address on Ethereum Sepolia
-export const TASKFI_CONTRACT_ADDRESS = '0xBB28f99330B5fDffd96a1D1D5D6f94345B6e1229'; // 0xBB28f99330B5fDffd96a1D1D5D6f94345B6e1229   sepolia 0x559B8F2476C923A418114ABFD3704Abf88d43776
+// Contract address on Polygon Amoy
+export const TASKFI_CONTRACT_ADDRESS = '0xBB28f99330B5fDffd96a1D1D5D6f94345B6e1229';
 
-// Sepolia testnet configuration
-export const SEPOLIA_CHAIN_ID = 80002; // sepolia 11155111
+// Polygon Amoy testnet configuration
+export const AMOY_CHAIN_ID = 80002; // Polygon Amoy testnet
+export const SEPOLIA_CHAIN_ID = 11155111; // Ethereum Sepolia (for reference)
+
+// Use Amoy as the expected chain ID
+export const EXPECTED_CHAIN_ID = AMOY_CHAIN_ID;
 
 // Task status enum mapping (matches smart contract)
 export enum TaskStatus {
@@ -31,7 +35,7 @@ export interface FormattedTask {
   id: number;
   creator: string;
   description: string;
-  stake: string; // Formatted ETH amount
+  stake: string; // Formatted POL amount
   deadline: number; // Unix timestamp
   proof: string; // IPFS hash or proof URL
   status: 'active' | 'completed' | 'failed' | 'in-review';
@@ -52,7 +56,7 @@ export function getTaskFiContract(providerOrSigner: ethers.providers.Provider | 
 }
 
 /**
- * Get read-only contract instance with improved RPC fallback
+ * Get read-only contract instance with Polygon Amoy RPC fallback
  * @returns Contract instance for reading data
  */
 export function getReadOnlyContract() {
@@ -65,12 +69,12 @@ export function getReadOnlyContract() {
     }
   }
   
-  // Fallback to public RPC endpoints
+  // Fallback to Polygon Amoy RPC endpoints
   const rpcEndpoints = [
-    'https://rpc.sepolia.org',
-    'https://sepolia.gateway.tenderly.co',
-    'https://ethereum-sepolia-rpc.publicnode.com',
-    'https://1rpc.io/sepolia'
+    'https://rpc-amoy.polygon.technology/',
+    'https://polygon-amoy-bor-rpc.publicnode.com',
+    'https://polygon-amoy.drpc.org',
+    'https://rpc.ankr.com/polygon_amoy'
   ];
   
   for (const rpc of rpcEndpoints) {
@@ -130,7 +134,7 @@ export async function checkIfTaskClaimed(taskId: number): Promise<boolean> {
  * @returns Formatted task object
  */
 export function formatTaskData(taskData: ContractTask): FormattedTask {
-  const stakeInEth = ethers.utils.formatEther(taskData.deposit);
+  const stakeInPol = ethers.utils.formatEther(taskData.deposit);
   const deadlineTimestamp = taskData.deadline.toNumber();
   const taskId = taskData.taskId.toNumber();
   const now = Math.floor(Date.now() / 1000);
@@ -180,7 +184,7 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
     id: taskId,
     creator: taskData.user,
     description: taskData.description,
-    stake: stakeInEth,
+    stake: stakeInPol,
     deadline: deadlineTimestamp,
     proof: taskData.proofOfCompletion,
     status,
@@ -215,7 +219,16 @@ export function parseDurationToHours(duration: string): number {
 }
 
 /**
- * Check if user is on Sepolia network
+ * Check if user is on Polygon Amoy network
+ * @param chainId - Current chain ID
+ * @returns True if on Polygon Amoy
+ */
+export function isAmoyNetwork(chainId?: number): boolean {
+  return chainId === AMOY_CHAIN_ID;
+}
+
+/**
+ * Check if user is on Sepolia network (for reference)
  * @param chainId - Current chain ID
  * @returns True if on Sepolia
  */
@@ -225,7 +238,7 @@ export function isSepoliaNetwork(chainId?: number): boolean {
 
 /**
  * Get minimum deposit amount from contract with retry logic
- * @returns Promise resolving to minimum deposit in ETH
+ * @returns Promise resolving to minimum deposit in POL
  */
 export async function getMinimumDeposit(): Promise<string> {
   try {
