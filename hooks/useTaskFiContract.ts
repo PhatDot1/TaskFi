@@ -63,10 +63,16 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   useEffect(() => {
     if (isConnected && walletClient && typeof window !== 'undefined') {
       try {
-        // Convert viem wallet client to ethers signer
-        const provider = new ethers.providers.Web3Provider(window.ethereum as any);
-        const signer = provider.getSigner();
-        setContract(getTaskFiContract(signer));
+        // Add a small delay to ensure MetaMask is ready
+        const timer = setTimeout(() => {
+          if (window.ethereum) {
+            const provider = new ethers.providers.Web3Provider(window.ethereum as any);
+            const signer = provider.getSigner();
+            setContract(getTaskFiContract(signer));
+          }
+        }, 500); // 500ms delay
+
+        return () => clearTimeout(timer);
       } catch (error) {
         console.error('Error setting up contract:', error);
         setContract(null);
@@ -123,7 +129,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Submit proof for a task
   const submitProof = useCallback(async (taskId: number, proofUrl: string): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet');
+      toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
@@ -158,7 +164,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Claim reward for completed task
   const claimReward = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet');
+      toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
@@ -191,7 +197,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Claim failed task deposit
   const claimFailedTask = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet');
+      toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
@@ -241,7 +247,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Approve task completion (admin only)
   const approveTaskCompletion = useCallback(async (taskId: number, nftUri: string): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet');
+      toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
@@ -346,10 +352,17 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [getUserTasks, getAllTasks]);
 
-  // Initial data load
+  // Initial data load with delay
   useEffect(() => {
-    refreshTasks();
-  }, [refreshTasks]);
+    if (isConnected) {
+      // Add delay to ensure wallet is fully connected
+      const timer = setTimeout(() => {
+        refreshTasks();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, refreshTasks]);
 
   return {
     contract,

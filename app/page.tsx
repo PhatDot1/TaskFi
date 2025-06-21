@@ -98,7 +98,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="animate-pulse">
                 <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
-                <p className="text-muted-foreground">Loading...</p>
+                <p className="text-muted-foreground">Loading TaskFi...</p>
               </div>
             </div>
           </main>
