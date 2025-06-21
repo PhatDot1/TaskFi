@@ -9,6 +9,7 @@ import { AddTaskModal } from '@/components/modals/AddTaskModal';
 import { CompleteTaskModal } from '@/components/modals/CompleteTaskModal';
 import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
+import { AdminPanel } from '@/components/admin/AdminPanel';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
 import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw, Wallet } from 'lucide-react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
@@ -32,6 +33,7 @@ export default function HomePage() {
   const [completeTaskOpen, setCompleteTaskOpen] = useState(false);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [viewProofOpen, setViewProofOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   
   // Modal data
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -444,6 +446,12 @@ export default function HomePage() {
             </div>
           )}
         </main>
+
+        {/* Admin Panel */}
+        <AdminPanel 
+          isVisible={adminPanelOpen} 
+          onToggle={() => setAdminPanelOpen(!adminPanelOpen)} 
+        />
 
         {/* Modals */}
         <AddTaskModal
