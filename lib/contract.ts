@@ -73,8 +73,7 @@ export function getReadOnlyContract() {
   const rpcEndpoints = [
     'https://rpc-amoy.polygon.technology/',
     'https://polygon-amoy-bor-rpc.publicnode.com',
-    'https://polygon-amoy.drpc.org',
-    'https://rpc.ankr.com/polygon_amoy'
+    'https://polygon-amoy.drpc.org'
   ];
   
   for (const rpc of rpcEndpoints) {
