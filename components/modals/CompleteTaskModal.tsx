@@ -23,10 +23,37 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CompleteTaskFormData } from '@/lib/types';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Loader2, CheckCircle, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle, ExternalLink, AlertTriangle, Upload } from 'lucide-react';
+import { canSubmitProofForTask } from '@/lib/contract';
+import { useAccount } from 'wagmi';
 
 const formSchema = z.object({
-  proof: z.string().url('Please enter a valid URL'),
+  proof: z.string()
+    .url('Please enter a valid URL')
+    .min(1, 'Proof URL is required')
+    .refine(
+      (url) => {
+        // Allow common proof platforms
+        const allowedDomains = [
+          'imgur.com', 'i.imgur.com',
+          'notion.so', 'www.notion.so',
+          'github.com', 'www.github.com',
+          'drive.google.com', 'docs.google.com',
+          'dropbox.com', 'www.dropbox.com',
+          'youtube.com', 'www.youtube.com', 'youtu.be',
+          'twitter.com', 'x.com',
+          'instagram.com', 'www.instagram.com'
+        ];
+        
+        try {
+          const domain = new URL(url).hostname.toLowerCase();
+          return allowedDomains.some(allowed => domain.includes(allowed));
+        } catch {
+          return false;
+        }
+      },
+      'Please use a supported platform (Imgur, Notion, GitHub, Google Drive, YouTube, etc.)'
+    )
 });
 
 interface CompleteTaskModalProps {
@@ -36,6 +63,7 @@ interface CompleteTaskModalProps {
 }
 
 export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModalProps) {
+  const { address } = useAccount();
   const { submitProof, isLoading } = useTaskFiContract();
   
   const form = useForm<CompleteTaskFormData>({
@@ -74,16 +102,59 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
 
   if (!task) return null;
 
+  // Check if user can actually submit proof
+  const canSubmit = canSubmitProofForTask(task, address);
+  const hasAlreadySubmitted = task.proof && task.proof.length > 0;
+  const isExpired = task.deadline < Math.floor(Date.now() / 1000);
+
+  // Show different content based on task state
+  if (!canSubmit) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-400" />
+              Cannot Submit Proof
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-orange-400/10 rounded-lg p-4 border border-orange-400/30">
+              <p className="text-orange-400 font-medium mb-2">
+                {hasAlreadySubmitted ? 'Proof Already Submitted' : 
+                 isExpired ? 'Task Deadline Passed' : 
+                 'Not Authorized'}
+              </p>
+              <p className="text-sm text-orange-400/80">
+                {hasAlreadySubmitted ? 'You have already submitted proof for this task. It is now awaiting admin review.' :
+                 isExpired ? 'The deadline for this task has passed. You can no longer submit proof.' :
+                 'You can only submit proof for your own active tasks.'}
+              </p>
+            </div>
+
+            <Button
+              onClick={() => onOpenChange(false)}
+              className="w-full btn-secondary"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-400" />
-            Complete Task
+            <Upload className="h-5 w-5 text-green-400" />
+            Submit Proof of Completion
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Submit proof of completion for admin review.
+            Submit proof that you've completed this task. An admin will review your submission.
           </DialogDescription>
         </DialogHeader>
         
@@ -119,20 +190,31 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
                     </div>
                   </FormControl>
                   <FormMessage />
+                  <div className="text-xs text-muted-foreground">
+                    Supported platforms: Imgur, Notion, GitHub, Google Drive, YouTube, Twitter/X, Instagram
+                  </div>
                 </FormItem>
               )}
             />
 
             <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
               <p className="text-sm text-primary mb-2">
-                <strong>Admin Review Process:</strong>
+                <strong>Review Process:</strong>
               </p>
               <ul className="text-xs text-primary/80 space-y-1">
-                <li>• Admin will review your proof for task completion</li>
-                <li>• Approved tasks allow you to claim your stake</li>
-                <li>• Rejected tasks become claimable by others</li>
-                <li>• You'll receive an NFT upon approval</li>
+                <li>• Your proof will be reviewed by an admin</li>
+                <li>• Approved tasks allow you to claim your full stake back</li>
+                <li>• Rejected tasks become claimable by other users</li>
+                <li>• You'll receive an NFT certificate upon approval</li>
+                <li>• Make sure your proof clearly shows task completion</li>
               </ul>
+            </div>
+
+            <div className="bg-yellow-400/10 rounded-lg p-3 border border-yellow-400/30">
+              <p className="text-xs text-yellow-400">
+                <strong>Important:</strong> You can only submit proof once per task. 
+                Make sure your link is correct and accessible before submitting.
+              </p>
             </div>
 
             <div className="flex gap-3">

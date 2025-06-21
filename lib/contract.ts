@@ -40,6 +40,8 @@ export interface FormattedTask {
   nftTokenId?: number;
   completionNFTUri?: string;
   createdAt: number;
+  canSubmitProof?: boolean; // Helper flag for UI
+  canClaim?: boolean; // Helper flag for UI
 }
 
 /**
@@ -73,7 +75,7 @@ export function getReadOnlyContract() {
 }
 
 /**
- * Format contract task data for UI consumption
+ * Format contract task data for UI consumption with enhanced status logic
  * @param taskData - Raw task data from contract
  * @returns Formatted task object
  */
@@ -81,29 +83,44 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
   const stakeInEth = ethers.utils.formatEther(taskData.deposit);
   const deadlineTimestamp = taskData.deadline.toNumber();
   const taskId = taskData.taskId.toNumber();
+  const now = Math.floor(Date.now() / 1000);
+  const hasProof = taskData.proofOfCompletion && taskData.proofOfCompletion.length > 0;
+  const isExpired = deadlineTimestamp < now;
   
-  // Map contract status to UI status
+  // Enhanced status mapping with better logic
   let status: FormattedTask['status'];
+  let canSubmitProof = false;
+  let canClaim = false;
+  
   switch (taskData.status) {
     case TaskStatus.InProgress:
-      // Check if deadline has passed
-      const now = Math.floor(Date.now() / 1000);
-      if (deadlineTimestamp < now) {
+      if (isExpired) {
         status = 'failed';
-      } else if (taskData.proofOfCompletion && taskData.proofOfCompletion.length > 0) {
+        canClaim = false; // Others can claim failed tasks
+      } else if (hasProof) {
         status = 'in-review';
+        canSubmitProof = false; // Already submitted proof
+        canClaim = false; // Waiting for admin approval
       } else {
         status = 'active';
+        canSubmitProof = true; // Can submit proof
+        canClaim = false;
       }
       break;
     case TaskStatus.Complete:
       status = 'completed';
+      canSubmitProof = false;
+      canClaim = true; // Can claim reward
       break;
     case TaskStatus.Failed:
       status = 'failed';
+      canSubmitProof = false;
+      canClaim = false; // Others can claim this
       break;
     default:
       status = 'active';
+      canSubmitProof = !hasProof && !isExpired;
+      canClaim = false;
   }
 
   return {
@@ -117,7 +134,9 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
     deposit: taskData.deposit,
     nftTokenId: taskData.nftTokenId.toNumber(),
     completionNFTUri: taskData.completionNFTUri,
-    createdAt: taskData.createdAt.toNumber()
+    createdAt: taskData.createdAt.toNumber(),
+    canSubmitProof,
+    canClaim
   };
 }
 
@@ -214,4 +233,51 @@ export async function getTaskSafely(taskId: number): Promise<ContractTask | null
     console.error(`Failed to fetch task ${taskId}:`, error);
     return null;
   }
+}
+
+/**
+ * Check if a task can have proof submitted
+ * @param task - Formatted task object
+ * @param userAddress - Current user's address
+ * @returns True if user can submit proof
+ */
+export function canSubmitProofForTask(task: FormattedTask, userAddress?: string): boolean {
+  if (!userAddress || !task) return false;
+  
+  const isOwner = task.creator.toLowerCase() === userAddress.toLowerCase();
+  const isActive = task.status === 'active';
+  const hasNoProof = !task.proof || task.proof.length === 0;
+  const notExpired = task.deadline > Math.floor(Date.now() / 1000);
+  
+  return isOwner && isActive && hasNoProof && notExpired;
+}
+
+/**
+ * Check if a task can be claimed by the owner
+ * @param task - Formatted task object
+ * @param userAddress - Current user's address
+ * @returns True if user can claim the task
+ */
+export function canClaimTask(task: FormattedTask, userAddress?: string): boolean {
+  if (!userAddress || !task) return false;
+  
+  const isOwner = task.creator.toLowerCase() === userAddress.toLowerCase();
+  const isCompleted = task.status === 'completed';
+  
+  return isOwner && isCompleted;
+}
+
+/**
+ * Check if a failed task can be claimed by anyone
+ * @param task - Formatted task object
+ * @param userAddress - Current user's address
+ * @returns True if user can claim the failed task
+ */
+export function canClaimFailedTask(task: FormattedTask, userAddress?: string): boolean {
+  if (!userAddress || !task) return false;
+  
+  const isNotOwner = task.creator.toLowerCase() !== userAddress.toLowerCase();
+  const isFailed = task.status === 'failed';
+  
+  return isNotOwner && isFailed;
 }

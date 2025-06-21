@@ -160,40 +160,100 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
   }, [contract, isConnected, isCorrectNetwork]);
 
-  // Submit proof for a task
+  // Submit proof for a task with enhanced validation
   const submitProof = useCallback(async (taskId: number, proofUrl: string): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
       toast.error('Please connect your wallet to Sepolia network');
       return false;
     }
 
+    if (!proofUrl || proofUrl.trim().length === 0) {
+      toast.error('Proof URL is required');
+      return false;
+    }
+
     try {
       setIsLoading(true);
       
-      const tx = await contract.submitProof(taskId, proofUrl);
+      // First check if the task exists and user can submit proof
+      const taskData = await getTaskSafely(taskId);
+      if (!taskData) {
+        toast.error('Task not found');
+        return false;
+      }
+
+      const formattedTask = formatTaskData(taskData);
       
-      toast.success('Proof submitted', {
-        description: 'Waiting for confirmation...'
+      // Check if user owns the task
+      if (formattedTask.creator.toLowerCase() !== address?.toLowerCase()) {
+        toast.error('You can only submit proof for your own tasks');
+        return false;
+      }
+
+      // Check if proof already submitted
+      if (formattedTask.proof && formattedTask.proof.length > 0) {
+        toast.error('Proof has already been submitted for this task');
+        return false;
+      }
+
+      // Check if task is still active
+      if (formattedTask.status !== 'active') {
+        toast.error('Can only submit proof for active tasks');
+        return false;
+      }
+
+      // Check if deadline has passed
+      const now = Math.floor(Date.now() / 1000);
+      if (formattedTask.deadline < now) {
+        toast.error('Cannot submit proof after deadline has passed');
+        return false;
+      }
+
+      // Estimate gas first
+      const gasEstimate = await contract.estimateGas.submitProof(taskId, proofUrl);
+      
+      const tx = await contract.submitProof(taskId, proofUrl, {
+        gasLimit: gasEstimate.mul(120).div(100) // Add 20% buffer
       });
       
-      await tx.wait();
+      toast.success('Proof submission transaction sent', {
+        description: 'Waiting for blockchain confirmation...'
+      });
+      
+      const receipt = await tx.wait();
       
       toast.success('Proof submitted successfully!', {
-        description: 'Your task is now awaiting admin approval'
+        description: 'Your task is now awaiting admin review. You\'ll be notified when it\'s approved.'
       });
       
+      // Refresh tasks to show updated status
       setTimeout(() => refreshTasks(), 3000);
       return true;
     } catch (error: any) {
       console.error('Error submitting proof:', error);
-      toast.error('Failed to submit proof', {
-        description: error.reason || error.message || 'Transaction failed'
-      });
+      
+      if (error.code === 'USER_REJECTED') {
+        toast.error('Transaction cancelled', {
+          description: 'You cancelled the proof submission'
+        });
+      } else if (error.message?.includes('already submitted')) {
+        toast.error('Proof already submitted', {
+          description: 'You have already submitted proof for this task'
+        });
+      } else if (error.message?.includes('deadline')) {
+        toast.error('Deadline passed', {
+          description: 'Cannot submit proof after the deadline'
+        });
+      } else {
+        toast.error('Failed to submit proof', {
+          description: error.reason || error.message || 'Transaction failed'
+        });
+      }
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [contract, isConnected, isCorrectNetwork]);
+  }, [contract, isConnected, isCorrectNetwork, address]);
 
   // Claim reward for completed task
   const claimReward = useCallback(async (taskId: number): Promise<boolean> => {
