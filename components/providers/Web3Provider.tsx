@@ -3,7 +3,7 @@
 import { createWeb3Modal } from '@web3modal/wagmi/react';
 import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
 import { WagmiProvider } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { polygonAmoy } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useEffect, useState } from 'react';
 import { http } from 'viem';
@@ -19,29 +19,28 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
-// Configure Sepolia with free public RPC endpoints (no API keys required)
-const sepoliaWithRpc = {
-  ...sepolia,
+// Configure Polygon Amoy with multiple RPC endpoints for redundancy
+const polygonAmoyWithRpc = {
+  ...polygonAmoy,
   rpcUrls: {
     default: {
       http: [
         'https://rpc-amoy.polygon.technology/',
-        'https://rpc-amoy.polygon.technology/',
-        'https://rpc-amoy.polygon.technology/',
-        'https://rpc-amoy.polygon.technology/'
+        'https://polygon-amoy-bor-rpc.publicnode.com',
+        'https://polygon-amoy.drpc.org'
       ]
     },
     public: {
       http: [
         'https://rpc-amoy.polygon.technology/',
-        'https://rpc-amoy.polygon.technology/',
-        'https://rpc-amoy.polygon.technology/'
+        'https://polygon-amoy-bor-rpc.publicnode.com',
+        'https://polygon-amoy.drpc.org'
       ]
     }
   }
 };
 
-const chains = [sepoliaWithRpc] as const;
+const chains = [polygonAmoyWithRpc] as const;
 
 const config = defaultWagmiConfig({
   chains,
@@ -52,7 +51,7 @@ const config = defaultWagmiConfig({
   enableEIP6963: true,
   enableCoinbase: false,
   transports: {
-    [sepolia.id]: http('https://rpc.sepolia.org')
+    [polygonAmoy.id]: http('https://rpc-amoy.polygon.technology/')
   }
 });
 

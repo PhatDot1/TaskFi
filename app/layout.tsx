@@ -9,7 +9,7 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mon
 
 export const metadata: Metadata = {
   title: 'TaskFi - Web3 Productivity Tracker',
-  description: 'Stake POL tokens to commit to your tasks and prove completion on Ethereum Sepolia',
+  description: 'Stake POL tokens to commit to your tasks and prove completion on Polygon Amoy',
 };
 
 export default function RootLayout({

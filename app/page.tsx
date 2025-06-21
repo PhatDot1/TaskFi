@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { SEPOLIA_CHAIN_ID } from '@/lib/contract';
+import { AMOY_CHAIN_ID } from '@/lib/contract'; // Changed from SEPOLIA_CHAIN_ID
 
 export default function HomePage() {
   const { address, isConnected } = useAccount();
@@ -80,9 +80,9 @@ export default function HomePage() {
     setViewProofOpen(true);
   };
 
-  const handleSwitchToSepolia = async () => {
+  const handleSwitchToAmoy = async () => { // Renamed function
     try {
-      await switchChain({ chainId: SEPOLIA_CHAIN_ID });
+      await switchChain({ chainId: AMOY_CHAIN_ID }); // Changed to AMOY_CHAIN_ID
     } catch (error) {
       console.error('Failed to switch network:', error);
     }
@@ -144,7 +144,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <Button
-                  onClick={handleSwitchToSepolia}
+                  onClick={handleSwitchToAmoy} // Updated function call
                   className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
                   Switch to Amoy
@@ -443,7 +443,7 @@ export default function HomePage() {
                 <w3m-button />
                 <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/30">
                   <p className="text-xs text-primary">
-                    <strong>Ethereum Sepolia Testnet</strong><br />
+                    <strong>Polygon Amoy Testnet</strong><br />
                     Make sure you're connected to the correct network to interact with tasks.
                   </p>
                 </div>

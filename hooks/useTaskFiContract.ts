@@ -9,8 +9,8 @@ import {
   formatTaskData, 
   FormattedTask,
   ContractTask,
-  SEPOLIA_CHAIN_ID,
-  isSepoliaNetwork,
+  AMOY_CHAIN_ID, // Changed from SEPOLIA_CHAIN_ID
+  isAmoyNetwork, // Changed from isSepoliaNetwork
   getAllTaskIds,
   getTaskSafely
 } from '@/lib/contract';
@@ -58,8 +58,8 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   
   const readOnlyContract = getReadOnlyContract();
   
-  // Check if we're on the correct network (Sepolia)
-  const isCorrectNetwork = chainId === SEPOLIA_CHAIN_ID;
+  // Check if we're on the correct network (Polygon Amoy)
+  const isCorrectNetwork = chainId === AMOY_CHAIN_ID; // Changed from SEPOLIA_CHAIN_ID
 
   // Initialize contract when wallet is connected and on correct network
   useEffect(() => {
@@ -96,7 +96,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
     }
 
     if (!isCorrectNetwork) {
-      toast.error('Please switch to Sepolia network');
+      toast.error('Please switch to Polygon Amoy network'); // Updated message
       return false;
     }
 
@@ -127,7 +127,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       const receipt = await tx.wait();
       
       toast.success('Task created successfully!', {
-        description: `Staked ${depositEth} ETH for "${description.slice(0, 30)}..."`
+        description: `Staked ${depositEth} POL for "${description.slice(0, 30)}..."` // Changed from ETH to POL
       });
       
       // Refresh tasks after successful submission with a longer delay
@@ -163,7 +163,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Submit proof for a task with enhanced validation
   const submitProof = useCallback(async (taskId: number, proofUrl: string): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet to Sepolia network');
+      toast.error('Please connect your wallet to Polygon Amoy network'); // Updated message
       return false;
     }
 
@@ -258,7 +258,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Enhanced claim reward function with better debugging
   const claimReward = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet to Sepolia network');
+      toast.error('Please connect your wallet to Polygon Amoy network'); // Updated message
       return false;
     }
 
@@ -396,7 +396,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Claim failed task deposit
   const claimFailedTask = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet to Sepolia network');
+      toast.error('Please connect your wallet to Polygon Amoy network'); // Updated message
       return false;
     }
 
@@ -446,7 +446,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
   // Approve task completion (admin only) - NO NFT LOGIC
   const approveTaskCompletion = useCallback(async (taskId: number): Promise<boolean> => {
     if (!contract || !isConnected || !isCorrectNetwork) {
-      toast.error('Please connect your wallet to Sepolia network');
+      toast.error('Please connect your wallet to Polygon Amoy network'); // Updated message
       return false;
     }
 
