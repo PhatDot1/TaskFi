@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Loader2, Upload, AlertTriangle, Image, X, CheckCircle } from 'lucide-react';
+import { uploadToIPFS } from '@/lib/ipfs';
+import { Loader2, Upload, AlertTriangle, Image, X, CheckCircle, Cloud } from 'lucide-react';
 import { canSubmitProofForTask } from '@/lib/contract';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
@@ -48,6 +49,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<CompleteTaskFormData>({
@@ -102,68 +104,52 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
     }
   };
 
-  const uploadToIPFS = async (file: File): Promise<string> => {
-    setIsUploading(true);
-    try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Upload to a public IPFS service (using Pinata as example)
-      // In production, you'd want to use your own IPFS node or service
-      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT || 'your-pinata-jwt'}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        // Fallback to a mock IPFS URL for demo purposes
-        console.warn('IPFS upload failed, using mock URL');
-        return `https://ipfs.io/ipfs/mock-hash-${Date.now()}`;
-      }
-
-      const result = await response.json();
-      return `https://ipfs.io/ipfs/${result.IpfsHash}`;
-    } catch (error) {
-      console.error('IPFS upload error:', error);
-      // Return a mock URL for demo purposes
-      return `https://ipfs.io/ipfs/mock-hash-${Date.now()}`;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const onSubmit = async (data: CompleteTaskFormData) => {
     if (!task || !selectedFile) return;
     
     try {
+      setIsUploading(true);
+      setUploadProgress('Preparing upload...');
+      
       toast.success('Uploading image to IPFS...', {
-        description: 'Please wait while we upload your proof image'
+        description: 'Please wait while we upload your proof image to decentralized storage'
       });
 
-      // Upload image to IPFS
-      const ipfsUrl = await uploadToIPFS(selectedFile);
+      // Upload image to IPFS using our utility
+      setUploadProgress('Uploading to IPFS...');
+      const uploadResult = await uploadToIPFS(selectedFile);
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || 'Failed to upload to IPFS');
+      }
+
+      setUploadProgress('Upload complete! Submitting to blockchain...');
       
       toast.success('Image uploaded successfully!', {
-        description: 'Now submitting proof to blockchain...'
+        description: `IPFS Hash: ${uploadResult.ipfsHash?.slice(0, 20)}...`
       });
 
       // Submit proof with IPFS URL
-      const success = await submitProof(task.id, ipfsUrl);
+      const success = await submitProof(task.id, uploadResult.ipfsUrl!);
       
       if (success) {
         form.reset();
         removeFile();
+        setUploadProgress('');
         onOpenChange(false);
+        
+        toast.success('Proof submitted successfully!', {
+          description: 'Your task is now awaiting admin review'
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting proof:', error);
       toast.error('Failed to submit proof', {
-        description: 'Please try again'
+        description: error.message || 'Please try again'
       });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress('');
     }
   };
 
@@ -221,7 +207,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
             Submit Proof of Completion
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Upload an image that proves you've completed this task. An admin will review your submission.
+            Upload an image that proves you've completed this task. It will be stored on IPFS.
           </DialogDescription>
         </DialogHeader>
         
@@ -286,6 +272,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
                                   variant="ghost"
                                   size="sm"
                                   onClick={removeFile}
+                                  disabled={isUploading}
                                   className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
                                 >
                                   <X className="h-4 w-4" />
@@ -305,6 +292,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
                         type="file"
                         accept="image/*"
                         onChange={handleFileSelect}
+                        disabled={isUploading}
                         className="hidden"
                       />
                     </div>
@@ -314,15 +302,25 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
               )}
             />
 
+            {/* Upload Progress */}
+            {isUploading && uploadProgress && (
+              <div className="bg-blue-400/10 rounded-lg p-3 border border-blue-400/30">
+                <div className="flex items-center gap-2">
+                  <Cloud className="h-4 w-4 text-blue-400 animate-pulse" />
+                  <span className="text-sm text-blue-400">{uploadProgress}</span>
+                </div>
+              </div>
+            )}
+
             <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
               <p className="text-sm text-primary mb-2">
-                <strong>Review Process:</strong>
+                <strong>IPFS Storage:</strong>
               </p>
               <ul className="text-xs text-primary/80 space-y-1">
                 <li>• Your image will be uploaded to IPFS (decentralized storage)</li>
+                <li>• Images are permanently stored and accessible worldwide</li>
                 <li>• An admin will review your proof image</li>
                 <li>• Approved tasks allow you to claim your full stake back</li>
-                <li>• Rejected tasks become claimable by other users</li>
                 <li>• Make sure your image clearly shows task completion</li>
               </ul>
             </div>
@@ -350,7 +348,7 @@ export function CompleteTaskModal({ open, onOpenChange, task }: CompleteTaskModa
                 className="flex-1 btn-primary"
               >
                 {(isLoading || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isUploading ? 'Uploading to IPFS...' : 
+                {isUploading ? 'Uploading...' : 
                  isLoading ? 'Submitting...' : 
                  'Submit Proof'}
               </Button>
