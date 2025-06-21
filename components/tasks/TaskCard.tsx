@@ -13,7 +13,8 @@ import {
   AlertTriangle,
   Brain,
   Eye,
-  Upload
+  Upload,
+  Check
 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { canSubmitProofForTask, canClaimTask, canClaimFailedTask } from '@/lib/contract';
@@ -50,6 +51,13 @@ export function TaskCard({
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium status-completed">
             <CheckCircle className="h-3 w-3" />
             Completed
+          </div>
+        );
+      case 'claimed':
+        return (
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-400/10 border border-blue-400/30 text-blue-400">
+            <Check className="h-3 w-3" />
+            Claimed
           </div>
         );
       case 'failed':
@@ -98,6 +106,7 @@ export function TaskCard({
   const canClaimOwn = canClaimTask(task, address);
   const canClaimFailed = canClaimFailedTask(task, address);
   const hasProof = task.proof && task.proof.length > 0;
+  const isClaimed = task.status === 'claimed';
 
   return (
     <div className="task-card">
@@ -112,6 +121,12 @@ export function TaskCard({
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-yellow-400/10 border border-yellow-400/30 text-yellow-400">
                 <Upload className="h-3 w-3" />
                 Proof Submitted
+              </div>
+            )}
+            {isClaimed && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-blue-400/10 border border-blue-400/30 text-blue-400">
+                <Trophy className="h-3 w-3" />
+                Stake Claimed
               </div>
             )}
           </div>
@@ -152,6 +167,18 @@ export function TaskCard({
         </div>
       )}
 
+      {/* Claimed Status Section */}
+      {isClaimed && (
+        <div className="mb-4 p-3 bg-blue-400/10 border border-blue-400/30 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-blue-400" />
+            <span className="text-sm font-medium text-blue-400">
+              Stake successfully claimed! Task completed and reward received.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Coins className="h-4 w-4 text-primary" />
@@ -161,6 +188,11 @@ export function TaskCard({
           <span className="text-xs text-muted-foreground">
             (~${(parseFloat(task.stake) * 2000).toFixed(2)})
           </span>
+          {isClaimed && (
+            <span className="text-xs text-blue-400 font-medium">
+              (Claimed)
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -189,8 +221,8 @@ export function TaskCard({
             </Button>
           )}
 
-          {/* Claim Own Task Button */}
-          {canClaimOwn && (
+          {/* Claim Own Task Button - only show if can claim and not already claimed */}
+          {canClaimOwn && !isClaimed && (
             <Button
               size="sm"
               onClick={handleClaimReward}
@@ -213,6 +245,13 @@ export function TaskCard({
               <AlertTriangle className="h-3 w-3 mr-1.5" />
               Claim Failed
             </Button>
+          )}
+
+          {/* Already Claimed State */}
+          {isClaimed && isOwn && (
+            <div className="text-xs text-blue-400 px-3 py-2 bg-blue-400/10 rounded-lg border border-blue-400/30">
+              ✓ Claimed
+            </div>
           )}
 
           {/* No Action Available State */}

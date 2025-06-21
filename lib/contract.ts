@@ -24,6 +24,7 @@ export interface ContractTask {
   status: TaskStatus;
   proofOfCompletion: string;
   createdAt: ethers.BigNumber;
+  claimed?: boolean; // Track if reward has been claimed
 }
 
 export interface FormattedTask {
@@ -33,9 +34,10 @@ export interface FormattedTask {
   stake: string; // Formatted ETH amount
   deadline: number; // Unix timestamp
   proof: string; // IPFS hash or proof URL
-  status: 'active' | 'completed' | 'failed' | 'in-review';
+  status: 'active' | 'completed' | 'failed' | 'in-review' | 'claimed';
   deposit: ethers.BigNumber; // Raw BigNumber for calculations
   createdAt: number;
+  claimed?: boolean; // Track if reward has been claimed
   canSubmitProof?: boolean; // Helper flag for UI
   canClaim?: boolean; // Helper flag for UI
 }
@@ -71,6 +73,40 @@ export function getReadOnlyContract() {
 }
 
 /**
+ * Check if a task has been claimed by querying contract events or state
+ * @param taskId - Task ID to check
+ * @returns Promise resolving to true if claimed
+ */
+export async function checkIfTaskClaimed(taskId: number): Promise<boolean> {
+  try {
+    if (!window.ethereum) return false;
+    
+    const contract = getReadOnlyContract();
+    
+    // Try to check if there's a claimed flag or similar
+    // This might vary depending on your contract implementation
+    try {
+      // Method 1: Check if contract has a claimed mapping
+      const claimed = await contract.taskClaimed(taskId);
+      return claimed;
+    } catch (error) {
+      // Method 2: Check task deposit - if it's 0, it might have been claimed
+      try {
+        const taskData = await contract.getTask(taskId);
+        // If deposit is 0 and status is complete, it's likely been claimed
+        return taskData.status === TaskStatus.Complete && taskData.deposit.eq(0);
+      } catch (error2) {
+        console.log('Could not determine claim status for task', taskId);
+        return false;
+      }
+    }
+  } catch (error) {
+    console.error('Error checking claim status:', error);
+    return false;
+  }
+}
+
+/**
  * Format contract task data for UI consumption with enhanced status logic
  * @param taskData - Raw task data from contract
  * @returns Formatted task object
@@ -82,6 +118,9 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
   const now = Math.floor(Date.now() / 1000);
   const hasProof = taskData.proofOfCompletion && taskData.proofOfCompletion.length > 0;
   const isExpired = deadlineTimestamp < now;
+  
+  // Check if task has been claimed (deposit is 0 after claiming)
+  const isClaimed = taskData.status === TaskStatus.Complete && taskData.deposit.eq(0);
   
   // Enhanced status mapping with better logic
   let status: FormattedTask['status'];
@@ -104,9 +143,15 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
       }
       break;
     case TaskStatus.Complete:
-      status = 'completed';
-      canSubmitProof = false;
-      canClaim = true; // Can claim reward
+      if (isClaimed) {
+        status = 'claimed';
+        canSubmitProof = false;
+        canClaim = false; // Already claimed
+      } else {
+        status = 'completed';
+        canSubmitProof = false;
+        canClaim = true; // Can claim reward
+      }
       break;
     case TaskStatus.Failed:
       status = 'failed';
@@ -129,6 +174,7 @@ export function formatTaskData(taskData: ContractTask): FormattedTask {
     status,
     deposit: taskData.deposit,
     createdAt: taskData.createdAt.toNumber(),
+    claimed: isClaimed,
     canSubmitProof,
     canClaim
   };
@@ -257,8 +303,9 @@ export function canClaimTask(task: FormattedTask, userAddress?: string): boolean
   
   const isOwner = task.creator.toLowerCase() === userAddress.toLowerCase();
   const isCompleted = task.status === 'completed';
+  const notClaimed = !task.claimed;
   
-  return isOwner && isCompleted;
+  return isOwner && isCompleted && notClaimed;
 }
 
 /**

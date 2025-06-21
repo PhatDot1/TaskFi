@@ -11,7 +11,7 @@ import { ClaimModal } from '@/components/modals/ClaimModal';
 import { ViewProofModal } from '@/components/modals/ViewProofModal';
 import { AdminPanel } from '@/components/admin/AdminPanel';
 import { useTaskFiContract } from '@/hooks/useTaskFiContract';
-import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw, Wallet } from 'lucide-react';
+import { Plus, Trophy, Clock, CheckCircle, XCircle, TrendingUp, HelpCircle, AlertTriangle, RefreshCw, Wallet, Check } from 'lucide-react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import {
   Tooltip,
@@ -51,12 +51,13 @@ export default function HomePage() {
   // Group user tasks by status
   const activeTasks = userTasks.filter(task => task.status === 'active');
   const completedTasks = userTasks.filter(task => task.status === 'completed');
+  const claimedTasks = userTasks.filter(task => task.status === 'claimed');
   const failedTasks = userTasks.filter(task => task.status === 'failed');
   const inReviewTasks = userTasks.filter(task => task.status === 'in-review');
   
   // Filter tasks based on toggle
   const activeTasksToShow = [...activeTasks, ...inReviewTasks];
-  const endedTasksToShow = [...completedTasks, ...failedTasks];
+  const endedTasksToShow = [...completedTasks, ...claimedTasks, ...failedTasks];
   const tasksToShow = showActiveTasks ? activeTasksToShow : endedTasksToShow;
 
   // Filter public tasks
@@ -96,11 +97,12 @@ export default function HomePage() {
     const total = userTasks.length;
     const active = activeTasks.length;
     const completed = completedTasks.length;
+    const claimed = claimedTasks.length;
     const failed = failedTasks.length;
     // Only count stakes from active and in-review tasks as "currently staked"
     const currentlyStaked = [...activeTasks, ...inReviewTasks].reduce((sum, task) => sum + parseFloat(task.stake), 0);
     
-    return { total, active, completed, failed, currentlyStaked };
+    return { total, active, completed, claimed, failed, currentlyStaked };
   };
 
   const stats = getTaskStats();
@@ -167,7 +169,7 @@ export default function HomePage() {
 
           {/* Stats Overview */}
           {mounted && isConnected && isCorrectNetwork && (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
               <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy className="h-4 w-4 text-primary" />
@@ -188,6 +190,13 @@ export default function HomePage() {
                   <span className="text-sm font-medium text-muted-foreground">Completed</span>
                 </div>
                 <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
+              </div>
+              <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Check className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-muted-foreground">Claimed</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{stats.claimed}</p>
               </div>
               <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -330,6 +339,28 @@ export default function HomePage() {
                           </h3>
                           <div className="grid gap-4">
                             {completedTasks.map(task => (
+                              <TaskCard
+                                key={task.id}
+                                task={task}
+                                isOwn={true}
+                                onComplete={handleCompleteTask}
+                                onClaim={handleClaim}
+                                onViewProof={handleViewProof}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Claimed Tasks */}
+                      {claimedTasks.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
+                            <Check className="h-5 w-5" />
+                            Claimed Tasks ({claimedTasks.length})
+                          </h3>
+                          <div className="grid gap-4">
+                            {claimedTasks.map(task => (
                               <TaskCard
                                 key={task.id}
                                 task={task}
