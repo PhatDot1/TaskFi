@@ -143,7 +143,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
         });
       } else if (error.code === 'INSUFFICIENT_FUNDS') {
         toast.error('Insufficient funds', {
-          description: 'You need more ETH to complete this transaction'
+          description: 'You need more POL to complete this transaction'
         });
       } else if (error.code === 'USER_REJECTED') {
         toast.error('Transaction cancelled', {
@@ -297,7 +297,7 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       // Check user's balance before transaction
       const provider = new ethers.providers.Web3Provider(window.ethereum as any);
       const balanceBefore = await provider.getBalance(address!);
-      console.log('💰 Balance before claim:', ethers.utils.formatEther(balanceBefore), 'ETH');
+      console.log('💰 Balance before claim:', ethers.utils.formatEther(balanceBefore), 'POL');
 
       // Try multiple possible function names for claiming
       let tx;
@@ -352,15 +352,15 @@ export function useTaskFiContract(): UseTaskFiContractReturn {
       // Check balance after transaction
       const balanceAfter = await provider.getBalance(address!);
       const balanceDiff = balanceAfter.sub(balanceBefore);
-      console.log('💰 Balance after claim:', ethers.utils.formatEther(balanceAfter), 'ETH');
-      console.log('📈 Balance difference:', ethers.utils.formatEther(balanceDiff), 'ETH');
+      console.log('💰 Balance after claim:', ethers.utils.formatEther(balanceAfter), 'POL');
+      console.log('📈 Balance difference:', ethers.utils.formatEther(balanceDiff), 'POL');
       
       if (balanceDiff.gt(0)) {
         toast.success('Reward claimed successfully!', {
-          description: `Received ${ethers.utils.formatEther(balanceDiff)} ETH`
+          description: `Received ${ethers.utils.formatEther(balanceDiff)} POL`
         });
       } else {
-        toast.warning('Transaction completed but no ETH received', {
+        toast.warning('Transaction completed but no POL received', {
           description: 'Please check if the task was already claimed or contact support'
         });
       }

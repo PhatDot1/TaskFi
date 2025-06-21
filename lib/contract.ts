@@ -2,10 +2,10 @@ import { ethers } from 'ethers';
 import TaskFiABI from './TaskFi.json';
 
 // Contract address on Ethereum Sepolia
-export const TASKFI_CONTRACT_ADDRESS = '0x559B8F2476C923A418114ABFD3704Abf88d43776';
+export const TASKFI_CONTRACT_ADDRESS = '0xBB28f99330B5fDffd96a1D1D5D6f94345B6e1229'; // 0xBB28f99330B5fDffd96a1D1D5D6f94345B6e1229   sepolia 0x559B8F2476C923A418114ABFD3704Abf88d43776
 
 // Sepolia testnet configuration
-export const SEPOLIA_CHAIN_ID = 11155111;
+export const SEPOLIA_CHAIN_ID = 80002; // sepolia 11155111
 
 // Task status enum mapping (matches smart contract)
 export enum TaskStatus {

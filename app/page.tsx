@@ -205,7 +205,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-muted-foreground">Currently Staked</span>
                 </div>
-                <p className="text-2xl font-bold text-primary">{stats.currentlyStaked.toFixed(3)} ETH</p>
+                <p className="text-2xl font-bold text-primary">{stats.currentlyStaked.toFixed(3)} POL</p>
               </div>
             </div>
           )}
@@ -437,7 +437,7 @@ export default function HomePage() {
                     <h2 className="text-2xl font-bold text-foreground">Welcome to TaskFi</h2>
                   </div>
                   <p className="text-muted-foreground">
-                    Connect your wallet to start staking ETH on your productivity goals.
+                    Connect your wallet to start staking POL on your productivity goals.
                   </p>
                 </div>
                 <w3m-button />

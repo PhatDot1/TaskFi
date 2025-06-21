@@ -175,7 +175,7 @@ export function TaskCard({
         <div className="flex items-center gap-2">
           <Coins className="h-4 w-4 text-primary" />
           <span className="font-bold text-lg text-primary">
-            {task.stake} ETH
+            {task.stake} POL
           </span>
           <span className="text-xs text-muted-foreground">
             (~${(parseFloat(task.stake) * 2000).toFixed(2)})

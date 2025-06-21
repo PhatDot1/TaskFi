@@ -64,7 +64,7 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
       const success = await approveTaskCompletion(task.id);
       if (success) {
         toast.success('Task approved successfully!', {
-          description: `${formatAddress(task.creator)} can now claim their ${task.stake} ETH`
+          description: `${formatAddress(task.creator)} can now claim their ${task.stake} POL`
         });
         setSelectedTask(null);
         setTimeout(() => refreshTasks(), 2000);
@@ -170,7 +170,7 @@ export function AdminPanel({ isVisible, onToggle }: AdminPanelProps) {
                       <span>Creator: {formatAddress(task.creator)}</span>
                       <span className="flex items-center gap-1">
                         <Coins className="h-3 w-3" />
-                        {task.stake} ETH
+                        {task.stake} POL
                       </span>
                     </div>
                   </div>

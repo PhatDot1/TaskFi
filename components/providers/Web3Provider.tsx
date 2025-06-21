@@ -14,7 +14,7 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '2f05a7cde
 // Metadata for the dApp
 const metadata = {
   name: 'TaskFi',
-  description: 'Web3 Task Staking App on Ethereum Sepolia',
+  description: 'Web3 Task Staking App on Polygon Amoy',
   url: typeof window !== 'undefined' ? window.location.origin : 'https://taskfi.app',
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
@@ -25,17 +25,17 @@ const sepoliaWithRpc = {
   rpcUrls: {
     default: {
       http: [
-        'https://rpc.sepolia.org',
-        'https://sepolia.gateway.tenderly.co',
-        'https://ethereum-sepolia-rpc.publicnode.com',
-        'https://1rpc.io/sepolia'
+        'https://rpc-amoy.polygon.technology/',
+        'https://rpc-amoy.polygon.technology/',
+        'https://rpc-amoy.polygon.technology/',
+        'https://rpc-amoy.polygon.technology/'
       ]
     },
     public: {
       http: [
-        'https://rpc.sepolia.org',
-        'https://sepolia.gateway.tenderly.co',
-        'https://ethereum-sepolia-rpc.publicnode.com'
+        'https://rpc-amoy.polygon.technology/',
+        'https://rpc-amoy.polygon.technology/',
+        'https://rpc-amoy.polygon.technology/'
       ]
     }
   }

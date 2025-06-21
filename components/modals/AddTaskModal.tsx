@@ -42,11 +42,11 @@ const formSchema = z.object({
     .refine((val) => {
       const num = parseFloat(val);
       return !isNaN(num) && num >= 0.01;
-    }, 'Stake must be at least 0.01 ETH')
+    }, 'Stake must be at least 0.01 POL')
     .refine((val) => {
       const num = parseFloat(val);
       return !isNaN(num) && num <= 10;
-    }, 'Stake cannot exceed 10 ETH')
+    }, 'Stake cannot exceed 10 POL')
     .refine((val) => {
       // Check if it's a valid decimal number
       const regex = /^\d+(\.\d{1,18})?$/;
@@ -94,7 +94,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
             Create New Task
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Stake ETH to commit to completing your task by the deadline.
+            Stake POL to commit to completing your task by the deadline.
           </DialogDescription>
         </DialogHeader>
         
@@ -156,7 +156,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium text-foreground">
-                      Stake Amount (ETH)
+                      Stake Amount (POL)
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -171,7 +171,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                     </FormControl>
                     <FormMessage />
                     <p className="text-xs text-muted-foreground">
-                      Any amount from 0.01 to 10 ETH
+                      Any amount from 0.01 to 10 POL
                     </p>
                   </FormItem>
                 )}
@@ -183,7 +183,7 @@ export function AddTaskModal({ open, onOpenChange }: AddTaskModalProps) {
                 <strong className="text-foreground">How it works:</strong>
               </p>
               <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Your ETH stake will be locked until the deadline</li>
+                <li>• Your POL stake will be locked until the deadline</li>
                 <li>• Submit proof of completion before the deadline</li>
                 <li>• Get admin approval to claim your stake back</li>
                 <li>• Anyone can claim your stake if you miss the deadline</li>
